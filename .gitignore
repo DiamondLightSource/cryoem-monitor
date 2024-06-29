@@ -68,3 +68,4 @@ lockfiles/
 
 # ruff cache
 .ruff_cache/
+cryoem-monitor.code-workspace
