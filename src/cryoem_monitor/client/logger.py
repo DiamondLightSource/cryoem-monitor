@@ -1,6 +1,8 @@
-from typing import List, Literal, Optional
+import asyncio
+import json
+from typing import Dict, List, Literal, Optional, Union
 
-# import requests
+import requests
 from pydantic import ValidationError
 from pydantic_xml import BaseXmlModel, attr, element
 
@@ -141,31 +143,61 @@ class HealthMonitor(
     values: Values = element(tag="Values")
 
 
-# Load and extract required values from XML file
-with open("src/cryoem_monitor/client/HealthMonitor.xml") as file:
-    xml_data = file.read()
+def collect() -> Dict[str, List[Union[int, float]]]:
+    # Load and extract required values from XML file
+    with open("src/cryoem_monitor/client/HealthMonitor.xml") as file:
+        xml_data = file.read()
 
-# Remove the namespace from the XML data due to this specific one being invalid
-# Normally, this is not needed
-xml_data = xml_data.replace(
-    ' xmlns="HealthMonitorExport http://schemas.fei.com/HealthMonitor/Export/2009/07"',
-    "",
-)
+    # Remove the namespace from the XML data due to this specific one being invalid
+    # Normally, this is not needed
+    xml_data = xml_data.replace(
+        ' xmlns="HealthMonitorExport http://schemas.fei.com/HealthMonitor/Export/2009/07"',
+        "",
+    )
+    try:
+        EMData = HealthMonitor.from_xml(xml_data)
+    except ValidationError as exc:
+        print(exc)
 
-try:
-    m = HealthMonitor.from_xml(xml_data)
-except ValidationError as exc:
-    print(exc)
-a = 2
+    # Extract the required values from the XML data
+    setup: Dict[str, List[Union[int, float]]] = {}
+    value_data = EMData.values.value_data
+    for data in value_data:
+        values = data.parameter_value
+        name = data.parameter
+        # Remove the dots from the parameter name: not allowed in Prometheus metrics
+        name = name.replace(".", "")
+        setup[name] = []
+        for value in values:
+            for parameter in value.parameter_value:
+                setup[name].append(parameter.value.value)
 
-# Save all parameter names in a list
-# parameter_names = []
-# for child in root[2]:
-#     # parameter_names.append(child.attrib["Parameter"])
-#     parameter_names.append(element.attrib["Parameter"])
+    return setup
 
-# Post relevant data to the server
-# url = "http://localhost:8000/set"
 
-# headers = {"type": "fig_brightness", "value": 220}
-# requests.post(url, headers=headers)
+# Saving the parameter names to a JSON file
+def save_parameter_names():
+    vals: Dict[str, List[Union[int, float]]] = collect()
+    with open("src/cryoem_monitor/client/parameter_names.json", "w") as file:
+        json.dump({"parameter_names": list(vals.keys())}, file, indent=4)
+
+
+async def push_data():
+    url = "http://localhost:8000/set"
+    data: Dict[str, List[Union[int | float]]] = collect()
+    for parameter, values in data.items():
+        for value in values:
+            headers = {"type": parameter, "value": str(value)}
+            requests.post(url, headers=headers)
+            asyncio.sleep(0.1)
+
+
+async def main():
+    try:
+        await push_data()
+    except Exception as e:
+        print(f"An error has occured: {e}")
+
+
+if __name__ == "__main__":
+    asyncio.run(main())

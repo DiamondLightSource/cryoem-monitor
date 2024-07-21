@@ -1,10 +1,11 @@
-from typing import Callable, Dict
+import json
+import re
+from typing import Dict, List
 
 from fastapi import FastAPI, Request
 from prometheus_client import (
     Counter,
     Gauge,
-    Histogram,
     Summary,
     make_asgi_app,
 )
@@ -12,30 +13,32 @@ from prometheus_client import (
 app = FastAPI()
 
 
+def format_string(s: str) -> str:
+    # Add space before capital letters not at the start of the string
+    s = re.sub(r"(?<!^)(?=[A-Z][a-z])", " ", s)
+    # Handle sequences of capitals possibly followed by a lowercase letter
+    s = re.sub(r"(?<=.)([A-Z]+)([A-Z][a-z])", r" \1 \2", s)
+    # Insert space between letters and digits if they are adjacent
+    s = re.sub(r"(\D)(?=\d)", r"\1 ", s)  # Letters followed by digits
+    s = re.sub(r"(\d)(?=\D)", r"\1 ", s)  # Digits followed by letters
+    return s.strip()  # Remove any leading/trailing spaces added by the regex
+
+
 # Metrics to Track
-Summary = Summary("SERVER_REQUEST", "Overall Server Summary of EM parameter values")
-autofill_time = Histogram("AUTOFILL_TIME", "Time taken to autofill of ...")
-# Gauges
-v_supply = Gauge("V24_SUPPLY", "24V Power Supply to EM")
-feg_temp = Gauge("LENS_TEMPERATURE", "Temperature of the lens")
-camera_temp = Gauge("CAMERA_TEMPERATURE", "Temperature of the camera")
-vacuum_pressure = Gauge("VACUUM_PRESSURE", "Pressure of the vacuum")
-fig_brightness = Gauge("FIG_BRIGHTNESS", "Brightness of the fig")
-# Counters
+Summary("SERVER_REQUEST", "Overall Server Summary of EM parameter values")
+
+# Gauges - these are dynamically created by the JSON file containing all parameters
+with open("src/cryoem_monitor/client/parameter_names.json") as file:
+    parameters: List[str] = json.load(file)["parameter_names"]
+guages: Dict[str, Gauge] = {
+    parameter: Gauge(parameter, format_string(parameter)) for parameter in parameters
+}
+
+# Counters and Histogram - these are created manually and are extrapolated from Gauges
+# NB: This should be done with removing according modifying Gauges
 num_loads = Counter("AUTO_LOADER_COUNTER", "Number of loads of the autoloader")
 autofill_times = Counter("AUTOFILL_TIMES", "Number of autofill times")
 
-# TODO: Add metrics to track from HealthMonitorXML, and change names according to the XML file.  # noqa: E501
-# Some metrics will require calclulations - separate function that will be needed
-
-# Mapping the Prometheus Metrics to the FastAPI Endpoints based on their type
-guage_map: Dict[str, Callable] = {
-    "FegTemperature": feg_temp.set,
-    "camera_temp": camera_temp.set,
-    "vacuum_pressure": vacuum_pressure.set,
-    "fig_brightness": fig_brightness.set,
-    "Supply24V": v_supply.set,
-}
 
 increment_map = {
     "num_loads": num_loads.inc,
@@ -47,32 +50,27 @@ monitoring_app = make_asgi_app()
 app.mount("/metrics", monitoring_app)
 
 
-# TODO: should the set and increment functions be combined into one function?
-# How would the different headers be handled in that case?
 @app.post("/set")
 async def set_value(request: Request):
     headers = request.headers
-    header_type = headers.get("type")
-    if header_type in guage_map:
-        value = headers.get("value")
-        guage_map[header_type](float(value))
-    else:
-        return {"error": "Invalid type"}
+    try:
+        header_type = headers.get("type")
+        if header_type in guages:
+            value = headers.get("value")
+            if value is None:
+                raise ValueError("Value header is missing or empty.")
+
+            guages[header_type].set(float(value))
+        elif header_type in increment_map:
+            increment_map[header_type](1)
+        else:
+            raise ValueError("Invalid type")
+    except ValueError as e:
+        return {"error": str(e)}
 
 
-# Example Usage:
-# curl -X POST http://localhost:8000/set -H "type: fig_brightness" -H "value: 220"
+# Example Usage of Setting Value:
+# curl -X POST http://localhost:8000/set -H "type: ADLTemperature" -H "value: 220"
 
-
-@app.post("/increment")
-async def increment_counter(request: Request):
-    headers = request.headers
-    header_type = headers.get("type")
-    if header_type in increment_map:
-        increment_map[header_type](1)
-    else:
-        return {"error": "Invalid type"}
-
-
-# Example Usage:
-# curl -X POST http://localhost:8001/increment -H "type: num_loads"
+# Example Usage of Increment:
+# curl -X POST http://localhost:8001/set -H "type: num_loads"
