@@ -193,9 +193,7 @@ async def push_data(
     xml_path: os.PathLike = Path("src/cryoem_monitor/client/HealthMonitor.xml"),
 ):
     url = "http://localhost:8000/set"
-    data: Dict[str, List[Union[int | float]]] = collect(
-        xml_path=Path("src/cryoem_monitor/client/HealthMonitor.xml")
-    )
+    data: Dict[str, List[Union[int | float]]] = collect(xml_path=xml_path)
     for parameter, values in data.items():
         for value in values:
             headers = {"type": parameter, "value": str(value)}
