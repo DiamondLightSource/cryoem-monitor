@@ -31,7 +31,11 @@ dev = [
     "bump2version",
     "prometheus_client",
     "fastapi",
-    "uvicorn[standard]"
+    "uvicorn[standard]",
+    "requests",
+    "pydantic",
+    "pydantic_xml",
+    "types-requests"
 ]
 server = [
     "uvicorn[standard]",
