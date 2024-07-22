@@ -191,8 +191,9 @@ def save_parameter_names(
 
 async def push_data(
     xml_path: os.PathLike = Path("src/cryoem_monitor/client/HealthMonitor.xml"),
+    url_base: str = "http://localhost:8000",
 ):
-    url = "http://localhost:8000/set"
+    url = f"{url_base}/set"
     data: Dict[str, List[Union[int | float]]] = collect(xml_path=xml_path)
     for parameter, values in data.items():
         for value in values:

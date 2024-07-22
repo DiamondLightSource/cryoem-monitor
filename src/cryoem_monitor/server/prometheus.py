@@ -10,6 +10,8 @@ from prometheus_client import (
     make_asgi_app,
 )
 
+from cryoem_monitor.server.config import router
+
 app = FastAPI()
 
 
@@ -48,6 +50,7 @@ increment_map = {
 # Mounting Prometheus Metrics to FastAPI
 monitoring_app = make_asgi_app()
 app.mount("/metrics", monitoring_app)
+app.include_router(router)
 
 
 @app.post("/set")
