@@ -1,5 +1,6 @@
 import os
 from pathlib import Path
+from typing import List
 
 import yaml
 from fastapi import APIRouter
@@ -10,7 +11,7 @@ router = APIRouter()
 
 class CryoEMMonitorConfig(BaseModel):
     health_data_path: Path
-    health_data_command: str
+    health_data_command: List[str]
     health_data_collection_timestep: int
 
 

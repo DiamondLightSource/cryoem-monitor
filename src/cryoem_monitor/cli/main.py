@@ -24,12 +24,9 @@ def run():
 
     while True:
         try:
-            subprocess.run(list(config["health_data_command"].split()))
-            asyncio.run(
-                push_data(
-                    xml_path=Path(config["health_data_path"]), url_base=args.server
-                )
-            )
+            subprocess.run(config["health_data_command"])
+            xml_path = list(Path(config["health_data_path"]).glob("*.xml"))[0]
+            asyncio.run(push_data(xml_path=xml_path, url_base=args.server))
             time.sleep(config["health_data_collection_timestep"])
         except KeyboardInterrupt:
             break
