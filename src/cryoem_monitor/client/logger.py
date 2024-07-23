@@ -1,5 +1,7 @@
 import asyncio
 import json
+import os
+from pathlib import Path
 from typing import Dict, List, Literal, Optional, Union
 
 import requests
@@ -143,9 +145,11 @@ class HealthMonitor(
     values: Values = element(tag="Values")
 
 
-def collect() -> Dict[str, List[Union[int, float]]]:
+def collect(
+    xml_path: os.PathLike = Path("src/cryoem_monitor/client/HealthMonitor.xml"),
+) -> Dict[str, List[Union[int, float]]]:
     # Load and extract required values from XML file
-    with open("src/cryoem_monitor/client/HealthMonitor.xml") as file:
+    with open(xml_path) as file:
         xml_data = file.read()
 
     # Remove the namespace from the XML data due to this specific one being invalid
@@ -176,20 +180,26 @@ def collect() -> Dict[str, List[Union[int, float]]]:
 
 
 # Saving the parameter names to a JSON file
-def save_parameter_names():
-    vals: Dict[str, List[Union[int, float]]] = collect()
-    with open("src/cryoem_monitor/client/parameter_names.json", "w") as file:
+def save_parameter_names(
+    xml_path: os.PathLike = Path("src/cryoem_monitor/client/HealthMonitor.xml"),
+    json_out_path: os.PathLike = Path("src/cryoem_monitor/client/parameter_names.json"),
+):
+    vals: Dict[str, List[Union[int, float]]] = collect(xml_path=xml_path)
+    with open(json_out_path, "w") as file:
         json.dump({"parameter_names": list(vals.keys())}, file, indent=4)
 
 
-async def push_data():
-    url = "http://localhost:8000/set"
-    data: Dict[str, List[Union[int | float]]] = collect()
+async def push_data(
+    xml_path: os.PathLike = Path("src/cryoem_monitor/client/HealthMonitor.xml"),
+    url_base: str = "http://localhost:8000",
+):
+    url = f"{url_base}/set"
+    data: Dict[str, List[Union[int | float]]] = collect(xml_path=xml_path)
     for parameter, values in data.items():
         for value in values:
             headers = {"type": parameter, "value": str(value)}
             requests.post(url, headers=headers)
-            asyncio.sleep(0.1)
+            await asyncio.sleep(0.1)
 
 
 async def main():

@@ -35,7 +35,8 @@ dev = [
     "requests",
     "pydantic",
     "pydantic_xml",
-    "types-requests"
+    "types-requests",
+    "types-PyYAML"
 ]
 server = [
     "uvicorn[standard]",
@@ -47,6 +48,7 @@ server = [
 
 [project.scripts]
 cryoem_monitor = "cryoem_monitor.__main__:main"
+"cryoem_monitor.run" = "cryoem_monitor.cli.main:run"
 
 [project.urls]
 GitHub = "https://github.com/DiamondLightSource/cryoem-monitor"
