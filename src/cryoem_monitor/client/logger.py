@@ -199,7 +199,7 @@ async def push_data(
         for value in values:
             headers = {"type": parameter, "value": str(value)}
             requests.post(url, headers=headers)
-            asyncio.sleep(0.1)
+            await asyncio.sleep(0.1)
 
 
 async def main():
