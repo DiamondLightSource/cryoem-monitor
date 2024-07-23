@@ -35,7 +35,8 @@ dev = [
     "requests",
     "pydantic",
     "pydantic_xml",
-    "types-requests"
+    "types-requests",
+    "types-PyYAML"
 ]
 server = [
     "uvicorn[standard]",
