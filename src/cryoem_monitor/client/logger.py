@@ -1,6 +1,7 @@
 import asyncio
 import json
 import os
+from datetime import datetime, timedelta
 from pathlib import Path
 from typing import Dict, List, Literal, Optional, Union
 
@@ -145,6 +146,14 @@ class HealthMonitor(
     values: Values = element(tag="Values")
 
 
+def parse_datetime(datetime_str: str) -> datetime:
+    # Parse to datetime object with and wwithout fractional seconds
+    try:
+        return datetime.strptime(datetime_str, "%Y-%m-%dT%H:%M:%S.%fZ")
+    except ValueError:
+        return datetime.strptime(datetime_str, "%Y-%m-%dT%H:%M:%SZ")
+
+
 def collect(
     xml_path: os.PathLike = Path("src/cryoem_monitor/client/HealthMonitor.xml"),
 ) -> Dict[str, List[Union[int, float]]]:
@@ -164,6 +173,10 @@ def collect(
         print(exc)
 
     # Extract the required values from the XML data
+    time: str = EMData.values.end
+    time = time[:26] + "Z"
+    time_obj: datetime = parse_datetime(time)
+    time_obj = time_obj - timedelta(minutes=1)
     setup: Dict[str, List[Union[int, float]]] = {}
     value_data = EMData.values.value_data
     for data in value_data:
@@ -174,7 +187,9 @@ def collect(
         setup[name] = []
         for value in values:
             for parameter in value.parameter_value:
-                setup[name].append(parameter.value.value)
+                value_time: datetime = parse_datetime(parameter.timestamp)
+                if value_time >= time_obj:
+                    setup[name].append(parameter.value.value)
 
     return setup
 
@@ -196,10 +211,10 @@ async def push_data(
     url = f"{url_base}/set"
     data: Dict[str, List[Union[int | float]]] = collect(xml_path=xml_path)
     for parameter, values in data.items():
-        for value in values:
-            headers = {"type": parameter, "value": str(value)}
-            requests.post(url, headers=headers)
-            await asyncio.sleep(0.1)
+        if values:
+            for value in values:
+                headers = {"type": parameter, "value": str(value)}
+                requests.post(url, headers=headers)
 
 
 async def main():
