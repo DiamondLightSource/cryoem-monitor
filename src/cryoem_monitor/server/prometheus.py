@@ -33,7 +33,8 @@ Summary("SERVER_REQUEST", "Overall Server Summary of EM parameter values")
 with open("src/cryoem_monitor/client/parameter_names.json") as file:
     parameters: List[str] = json.load(file)["parameter_names"]
 guages: Dict[str, Gauge] = {
-    parameter: Gauge(parameter, format_string(parameter)) for parameter in parameters
+    parameter: Gauge(parameter, format_string(parameter), ["instrument"])
+    for parameter in parameters
 }
 
 # Counters and Histogram - these are created manually and are extrapolated from Gauges
@@ -58,14 +59,21 @@ async def set_value(request: Request):
     headers = request.headers
     try:
         header_type = headers.get("type")
+        instrument_name = headers.get("instrument")
+        if instrument_name is None:
+            raise ValueError("Instrument name is missing or empty.")
         if header_type in guages:
             value = headers.get("value")
             if value is None:
                 raise ValueError("Value header is missing or empty.")
 
+            # If no errors raised, set value and label with the instrument name
             guages[header_type].set(float(value))
+            guages[header_type].set(float(value)).labels(instrument_name)
         elif header_type in increment_map:
+            # If no errors raised, increment counter and label with instrument name
             increment_map[header_type](1)
+            increment_map[header_type](1).labels(instrument_name)
         else:
             raise ValueError("Invalid type")
     except ValueError as e:

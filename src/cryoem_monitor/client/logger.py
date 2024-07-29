@@ -6,7 +6,7 @@ from pathlib import Path
 from typing import Dict, List, Literal, Optional, Union
 
 import requests
-from pydantic import ValidationError
+from pydantic import BaseModel, ValidationError
 from pydantic_xml import BaseXmlModel, attr, element
 
 # Note: pydantic documentation suggests the use of lxml to decode the XML data file,
@@ -146,6 +146,11 @@ class HealthMonitor(
     values: Values = element(tag="Values")
 
 
+class ResponseData(BaseModel):
+    data: Dict[str, List[Union[int, float]]]
+    instrument_name: str
+
+
 def parse_datetime(datetime_str: str) -> datetime:
     # Parse to datetime object with and wwithout fractional seconds
     try:
@@ -156,7 +161,7 @@ def parse_datetime(datetime_str: str) -> datetime:
 
 def collect(
     xml_path: os.PathLike = Path("src/cryoem_monitor/client/HealthMonitor.xml"),
-) -> Dict[str, List[Union[int, float]]]:
+) -> ResponseData:
     # Load and extract required values from XML file
     with open(xml_path) as file:
         xml_data = file.read()
@@ -173,6 +178,7 @@ def collect(
         print(exc)
 
     # Extract the required values from the XML data
+    instrument_name: str = EMData.values.instrument
     time: str = EMData.values.end
     time = time[:26] + "Z"
     time_obj: datetime = parse_datetime(time)
@@ -191,7 +197,8 @@ def collect(
                 if value_time >= time_obj:
                     setup[name].append(parameter.value.value)
 
-    return setup
+    response = ResponseData(data=setup, instrument_name=instrument_name)
+    return response
 
 
 # Saving the parameter names to a JSON file
@@ -199,7 +206,7 @@ def save_parameter_names(
     xml_path: os.PathLike = Path("src/cryoem_monitor/client/HealthMonitor.xml"),
     json_out_path: os.PathLike = Path("src/cryoem_monitor/client/parameter_names.json"),
 ):
-    vals: Dict[str, List[Union[int, float]]] = collect(xml_path=xml_path)
+    vals: ResponseData = collect(xml_path=xml_path)
     with open(json_out_path, "w") as file:
         json.dump({"parameter_names": list(vals.keys())}, file, indent=4)
 
@@ -209,11 +216,17 @@ async def push_data(
     url_base: str = "http://localhost:8000",
 ):
     url = f"{url_base}/set"
-    data: Dict[str, List[Union[int | float]]] = collect(xml_path=xml_path)
+    response: ResponseData = collect(xml_path=xml_path)
+    data: Dict[str, List[Union[int | float]]] = response.data
+    instrument_name: str = response.instrument_name
     for parameter, values in data.items():
         if values:
             for value in values:
-                headers = {"type": parameter, "value": str(value)}
+                headers = {
+                    "type": parameter,
+                    "value": str(value),
+                    "instrument": instrument_name,
+                }
                 requests.post(url, headers=headers)
 
 
