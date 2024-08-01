@@ -182,7 +182,7 @@ def collect(
     time: str = EMData.values.end
     time = time[:26] + "Z"
     time_obj: datetime = parse_datetime(time)
-    time_obj = time_obj - timedelta(minutes=1)
+    time_obj = time_obj - timedelta(minutes=5)
     setup: Dict[str, List[Union[int, float]]] = {}
     value_data = EMData.values.value_data
     for data in value_data:
@@ -208,7 +208,37 @@ def save_parameter_names(
 ):
     vals: ResponseData = collect(xml_path=xml_path)
     with open(json_out_path, "w") as file:
-        json.dump({"parameter_names": list(vals.keys())}, file, indent=4)
+        json.dump({"parameter_names": list(vals.data.keys())}, file, indent=4)
+
+
+def parse_enums(
+    xml_path: os.PathLike = Path("src/cryoem_monitor/client/HealthMonitor.xml"),
+    json_out_path: os.PathLike = Path("src/cryoem_monitor/client/enums.json"),
+) -> Dict[str, Dict[int, str]]:
+    # Load and extract required values from XML file
+    with open(xml_path) as file:
+        xml_data = file.read()
+
+    # Remove the namespace from the XML data due to this specific one being invalid
+    # Normally, this is not needed
+    xml_data = xml_data.replace(
+        ' xmlns="HealthMonitorExport http://schemas.fei.com/HealthMonitor/Export/2009/07"',
+        "",
+    )
+    try:
+        EMData = HealthMonitor.from_xml(xml_data)
+    except ValidationError as exc:
+        print(exc)
+
+    # Write the enumeration values to a JSON file
+    data: Dict[str, Dict[int, str]] = {}
+    for enum in EMData.enumerations.enumerations:
+        name = enum.name
+        name = name.replace("_enum", "")
+        values = {lit.value: lit.name for lit in enum.literals}
+        data[name] = values
+
+    return data
 
 
 async def push_data(
@@ -232,6 +262,7 @@ async def push_data(
 
 async def main():
     try:
+        save_parameter_names()
         await push_data()
     except Exception as e:
         print(f"An error has occured: {e}")
