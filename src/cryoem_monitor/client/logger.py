@@ -1,11 +1,12 @@
 import asyncio
 import json
 import os
+from datetime import datetime, timedelta
 from pathlib import Path
 from typing import Dict, List, Literal, Optional, Union
 
 import requests
-from pydantic import ValidationError
+from pydantic import BaseModel, ValidationError
 from pydantic_xml import BaseXmlModel, attr, element
 
 # Note: pydantic documentation suggests the use of lxml to decode the XML data file,
@@ -145,9 +146,22 @@ class HealthMonitor(
     values: Values = element(tag="Values")
 
 
+class ResponseData(BaseModel):
+    data: Dict[str, List[Union[int, float]]]
+    instrument_name: str
+
+
+def parse_datetime(datetime_str: str) -> datetime:
+    # Parse to datetime object with and wwithout fractional seconds
+    try:
+        return datetime.strptime(datetime_str, "%Y-%m-%dT%H:%M:%S.%fZ")
+    except ValueError:
+        return datetime.strptime(datetime_str, "%Y-%m-%dT%H:%M:%SZ")
+
+
 def collect(
     xml_path: os.PathLike = Path("src/cryoem_monitor/client/HealthMonitor.xml"),
-) -> Dict[str, List[Union[int, float]]]:
+) -> ResponseData:
     # Load and extract required values from XML file
     with open(xml_path) as file:
         xml_data = file.read()
@@ -164,6 +178,11 @@ def collect(
         print(exc)
 
     # Extract the required values from the XML data
+    instrument_name: str = EMData.values.instrument
+    time: str = EMData.values.end
+    time = time[:26] + "Z"
+    time_obj: datetime = parse_datetime(time)
+    time_obj = time_obj - timedelta(minutes=5)
     setup: Dict[str, List[Union[int, float]]] = {}
     value_data = EMData.values.value_data
     for data in value_data:
@@ -174,9 +193,12 @@ def collect(
         setup[name] = []
         for value in values:
             for parameter in value.parameter_value:
-                setup[name].append(parameter.value.value)
+                value_time: datetime = parse_datetime(parameter.timestamp)
+                if value_time >= time_obj:
+                    setup[name].append(parameter.value.value)
 
-    return setup
+    response = ResponseData(data=setup, instrument_name=instrument_name)
+    return response
 
 
 # Saving the parameter names to a JSON file
@@ -184,9 +206,39 @@ def save_parameter_names(
     xml_path: os.PathLike = Path("src/cryoem_monitor/client/HealthMonitor.xml"),
     json_out_path: os.PathLike = Path("src/cryoem_monitor/client/parameter_names.json"),
 ):
-    vals: Dict[str, List[Union[int, float]]] = collect(xml_path=xml_path)
+    vals: ResponseData = collect(xml_path=xml_path)
     with open(json_out_path, "w") as file:
-        json.dump({"parameter_names": list(vals.keys())}, file, indent=4)
+        json.dump({"parameter_names": list(vals.data.keys())}, file, indent=4)
+
+
+def parse_enums(
+    xml_path: os.PathLike = Path("src/cryoem_monitor/client/HealthMonitor.xml"),
+    json_out_path: os.PathLike = Path("src/cryoem_monitor/client/enums.json"),
+) -> Dict[str, Dict[int, str]]:
+    # Load and extract required values from XML file
+    with open(xml_path) as file:
+        xml_data = file.read()
+
+    # Remove the namespace from the XML data due to this specific one being invalid
+    # Normally, this is not needed
+    xml_data = xml_data.replace(
+        ' xmlns="HealthMonitorExport http://schemas.fei.com/HealthMonitor/Export/2009/07"',
+        "",
+    )
+    try:
+        EMData = HealthMonitor.from_xml(xml_data)
+    except ValidationError as exc:
+        print(exc)
+
+    # Write the enumeration values to a JSON file
+    data: Dict[str, Dict[int, str]] = {}
+    for enum in EMData.enumerations.enumerations:
+        name = enum.name
+        name = name.replace("_enum", "")
+        values = {lit.value: lit.name for lit in enum.literals}
+        data[name] = values
+
+    return data
 
 
 async def push_data(
@@ -194,16 +246,23 @@ async def push_data(
     url_base: str = "http://localhost:8000",
 ):
     url = f"{url_base}/set"
-    data: Dict[str, List[Union[int | float]]] = collect(xml_path=xml_path)
+    response: ResponseData = collect(xml_path=xml_path)
+    data: Dict[str, List[Union[int | float]]] = response.data
+    instrument_name: str = response.instrument_name
     for parameter, values in data.items():
-        for value in values:
-            headers = {"type": parameter, "value": str(value)}
-            requests.post(url, headers=headers)
-            await asyncio.sleep(0.1)
+        if values:
+            for value in values:
+                headers = {
+                    "type": parameter,
+                    "value": str(value),
+                    "instrument": instrument_name,
+                }
+                requests.post(url, headers=headers)
 
 
 async def main():
     try:
+        save_parameter_names()
         await push_data()
     except Exception as e:
         print(f"An error has occured: {e}")
