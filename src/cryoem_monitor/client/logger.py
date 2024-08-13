@@ -182,7 +182,7 @@ def collect(
     time: str = EMData.values.end
     time = time[:26] + "Z"
     time_obj: datetime = parse_datetime(time)
-    time_obj = time_obj - timedelta(minutes=5)
+    time_obj = time_obj - timedelta(minutes=25)
     setup: Dict[str, List[Union[int, float]]] = {}
     value_data = EMData.values.value_data
     for data in value_data:
@@ -191,6 +191,7 @@ def collect(
         # Remove the dots from the parameter name: not allowed in Prometheus metrics
         name = name.replace(".", "")
         setup[name] = []
+        # send the list of values instead of each value
         for value in values:
             for parameter in value.parameter_value:
                 value_time: datetime = parse_datetime(parameter.timestamp)
@@ -211,6 +212,7 @@ def save_parameter_names(
         json.dump({"parameter_names": list(vals.data.keys())}, file, indent=4)
 
 
+# need to adjust this to fit for the required formats in the instruments section
 def parse_enums(
     xml_path: os.PathLike = Path("src/cryoem_monitor/client/HealthMonitor.xml"),
     json_out_path: os.PathLike = Path("src/cryoem_monitor/client/enums.json"),
@@ -251,18 +253,17 @@ async def push_data(
     instrument_name: str = response.instrument_name
     for parameter, values in data.items():
         if values:
-            for value in values:
-                headers = {
-                    "type": parameter,
-                    "value": str(value),
-                    "instrument": instrument_name,
-                }
-                requests.post(url, headers=headers)
+            payload = {
+                "type": parameter,
+                "value": values,
+                "instrument": instrument_name,
+            }
+            requests.post(url, json=payload)
 
 
 async def main():
     try:
-        save_parameter_names()
+        # save_parameter_names()
         await push_data()
     except Exception as e:
         print(f"An error has occured: {e}")

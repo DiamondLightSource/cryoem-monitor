@@ -1,8 +1,10 @@
 import json
 import re
-from typing import Dict, List
+import traceback
+from typing import Dict, List, Union
 
-from fastapi import FastAPI, Request
+import uvicorn
+from fastapi import FastAPI
 from prometheus_client import (
     Counter,
     Enum,
@@ -10,6 +12,7 @@ from prometheus_client import (
     Summary,
     make_asgi_app,
 )
+from pydantic import BaseModel
 
 from cryoem_monitor.client.logger import parse_enums
 from cryoem_monitor.server.config import router
@@ -71,40 +74,60 @@ app.mount("/metrics", monitoring_app)
 app.include_router(router)
 
 
-# Need to Decide which information needs to be the last value (gauge) and which needs to be the total counts (counter)  # noqa: E501
+class HealthMonitorData(BaseModel):
+    type: str
+    instrument: str
+    value: List[Union[str, float, int]]
+
+
+# Handle different values based on if it is a gauge or an enum
 @app.post("/set")
-async def set_value(request: Request):
-    headers = request.headers
+async def set_value(
+    request: HealthMonitorData,
+):
+    payload = request
     try:
-        header_type = headers.get("type")
-        instrument_name = headers.get("instrument")
+        header_type = payload.type
+        instrument_name = payload.instrument
         if instrument_name is None:
             raise ValueError("Instrument name is missing or empty.")
         if header_type in Enumerations:
-            value = headers.get("value")
-            if value is None:
+            values = payload.value
+            if values is None:
                 raise ValueError("Value header is missing or empty.")
-            Enumerations[header_type].labels(instrument=instrument_name).state(value)
-
+            print(Enumerations[header_type]._states)
+            for value in values:
+                Enumerations[header_type].labels(instrument=instrument_name).state(
+                    Enum_Data[header_type][int(value)]
+                )
         elif header_type in guages:
-            value = headers.get("value")
+            value = payload.value
             if value is None:
                 raise ValueError("Value header is missing or empty.")
 
-            # If no errors raised, set value and label with the instrument name
-            guages[header_type].labels(instrument_name).set(float(value))
-
+            # If no errors raised, set the last value and label with the instrument name
+            if isinstance(value, list):
+                guages[header_type].labels(instrument_name).set(float(value[-1]))
+            else:
+                guages[header_type].labels(instrument_name).set(float(value))
         elif header_type in increment_map:
             # If no errors raised, increment counter and label with instrument name
             increment_map[header_type].labels(instrument_name).inc(1)
         else:
             raise ValueError("Invalid type")
     except ValueError as e:
+        print(traceback.format_exc())
+        print(f"{header_type} and {e}")
         return {"error": str(e)}
 
 
-# Example Usage of Setting Value:
-# curl -X POST http://localhost:8000/set -H "type: ADLTemperature" -H "value: 220"
+# For Debugging Purposes
+if __name__ == "__prometheus__":
+    uvicorn.run(app, host="http://localhost", port=8000)
+
+
+# Example Usage of Setting Value of Gauge or Enumeration:
+# curl -X POST http://localhost:8000/set -H "Content-Type: application/json" -d '{"type": "ObjectiveMode", "value": [3], "instrument": os"}'  # noqa: E501
 
 # Example Usage of Increment:
-# curl -X POST http://localhost:8001/set -H "type: num_loads"
+# curl -X POST http://localhost:8000/set -H "Content-Type: application/json" -d '{"type": "num_loads", "instrument": Talos"}'  # noqa: E501
