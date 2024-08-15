@@ -1,4 +1,3 @@
-import json
 import re
 import traceback
 from typing import Dict, List, Union
@@ -14,7 +13,7 @@ from prometheus_client import (
 )
 from pydantic import BaseModel
 
-from cryoem_monitor.client.logger import parse_enums
+from cryoem_monitor.client.logger import ParameterNames, component_enums, parse_enums
 from cryoem_monitor.server.config import router
 
 app = FastAPI()
@@ -35,26 +34,32 @@ def format_string(s: str) -> str:
 Summary("SERVER_REQUEST", "Overall Server Summary of EM parameter values")
 
 # Create Enumerations for Prometheus Backend
-# Call all enumerations from function
-Enum_Data: Dict[str, Dict[int, str]] = parse_enums()
+# Call all enumerations and Components from function
+Enum_List: Dict[str, Dict[int, str]] = parse_enums()
+ComponentList: Dict[str, ParameterNames] = component_enums()
+
+
+# Create Enumerations and Gauges from ComponentList
 
 Enumerations: Dict[str, Enum] = {
-    enum: Enum(
-        enum,
-        format_string(enum),
-        states=list(Enum_Data[enum].values()),
+    componentid: Enum(
+        ComponentList[componentid].name,
+        f"PID_{componentid}: {format_string(ComponentList[componentid].name)}",
+        states=list(Enum_List[ComponentList[componentid].enumeration].values()),
         labelnames=["instrument"],
     )
-    for enum in Enum_Data
+    for componentid in ComponentList
+    if ComponentList[componentid].enumeration is not None
 }
 
-# Gauges - these are dynamically created by the JSON file containing all parameters
-with open("src/cryoem_monitor/client/parameter_names.json") as file:
-    parameters: List[str] = json.load(file)["parameter_names"]
-guages: Dict[str, Gauge] = {
-    parameter: Gauge(parameter, format_string(parameter), ["instrument"])
-    for parameter in parameters
-    if parameter not in Enumerations
+Gauges: Dict[str, Gauge] = {
+    componentid: Gauge(
+        ComponentList[componentid].name,
+        f"PID_{componentid}: {format_string(ComponentList[componentid].name)}",
+        ["instrument"],
+    )
+    for componentid in ComponentList
+    if ComponentList[componentid].enumeration is None
 }
 
 # Counters and Histogram - these are created manually and are extrapolated from Gauges
@@ -95,21 +100,20 @@ async def set_value(
             values = payload.value
             if values is None:
                 raise ValueError("Value header is missing or empty.")
-            print(Enumerations[header_type]._states)
             for value in values:
                 Enumerations[header_type].labels(instrument=instrument_name).state(
-                    Enum_Data[header_type][int(value)]
+                    Enum_List[ComponentList[header_type].enumeration][int(value)]
                 )
-        elif header_type in guages:
+        elif header_type in Gauges:
             value = payload.value
             if value is None:
                 raise ValueError("Value header is missing or empty.")
 
             # If no errors raised, set the last value and label with the instrument name
             if isinstance(value, list):
-                guages[header_type].labels(instrument_name).set(float(value[-1]))
+                Gauges[header_type].labels(instrument_name).set(float(value[-1]))
             else:
-                guages[header_type].labels(instrument_name).set(float(value))
+                Gauges[header_type].labels(instrument_name).set(float(value))
         elif header_type in increment_map:
             # If no errors raised, increment counter and label with instrument name
             increment_map[header_type].labels(instrument_name).inc(1)
