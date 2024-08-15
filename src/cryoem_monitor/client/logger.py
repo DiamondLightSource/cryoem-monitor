@@ -41,6 +41,7 @@ class Parameter(BaseXmlModel):
     name: str = attr(name="Name")
     displayname: str = attr(name="DisplayName")
     datatype: str = attr(name="Type")
+    enumerationname: Optional[str] = attr(name="EnumerationName", default=None)
     storageunit: str = attr(name="StorageUnit")
     displayunit: str = attr(name="DisplayUnit")
     displayscale: str = attr(name="DisplayScale")
@@ -151,6 +152,11 @@ class ResponseData(BaseModel):
     instrument_name: str
 
 
+class ParameterNames(BaseModel):
+    name: str
+    enumeration: Optional[str]
+
+
 def parse_datetime(datetime_str: str) -> datetime:
     # Parse to datetime object with and wwithout fractional seconds
     try:
@@ -159,23 +165,9 @@ def parse_datetime(datetime_str: str) -> datetime:
         return datetime.strptime(datetime_str, "%Y-%m-%dT%H:%M:%SZ")
 
 
-def collect(
-    xml_path: os.PathLike = Path("src/cryoem_monitor/client/HealthMonitor.xml"),
-) -> ResponseData:
+def collect() -> ResponseData:
     # Load and extract required values from XML file
-    with open(xml_path) as file:
-        xml_data = file.read()
-
-    # Remove the namespace from the XML data due to this specific one being invalid
-    # Normally, this is not needed
-    xml_data = xml_data.replace(
-        ' xmlns="HealthMonitorExport http://schemas.fei.com/HealthMonitor/Export/2009/07"',
-        "",
-    )
-    try:
-        EMData = HealthMonitor.from_xml(xml_data)
-    except ValidationError as exc:
-        print(exc)
+    EMData = parse_xml()
 
     # Extract the required values from the XML data
     instrument_name: str = EMData.values.instrument
@@ -186,12 +178,11 @@ def collect(
     setup: Dict[str, List[Union[int, float]]] = {}
     value_data = EMData.values.value_data
     for data in value_data:
+        # Extract the parameter values and parameter_id
         values = data.parameter_value
-        name = data.parameter
-        # Remove the dots from the parameter name: not allowed in Prometheus metrics
-        name = name.replace(".", "")
+        name = data.valueid
         setup[name] = []
-        # send the list of values instead of each value
+        # Append all values for each parameter_id
         for value in values:
             for parameter in value.parameter_value:
                 value_time: datetime = parse_datetime(parameter.timestamp)
@@ -207,16 +198,14 @@ def save_parameter_names(
     xml_path: os.PathLike = Path("src/cryoem_monitor/client/HealthMonitor.xml"),
     json_out_path: os.PathLike = Path("src/cryoem_monitor/client/parameter_names.json"),
 ):
-    vals: ResponseData = collect(xml_path=xml_path)
+    vals: ResponseData = collect()
     with open(json_out_path, "w") as file:
         json.dump({"parameter_names": list(vals.data.keys())}, file, indent=4)
 
 
-# need to adjust this to fit for the required formats in the instruments section
-def parse_enums(
+def parse_xml(
     xml_path: os.PathLike = Path("src/cryoem_monitor/client/HealthMonitor.xml"),
-    json_out_path: os.PathLike = Path("src/cryoem_monitor/client/enums.json"),
-) -> Dict[str, Dict[int, str]]:
+) -> HealthMonitor:
     # Load and extract required values from XML file
     with open(xml_path) as file:
         xml_data = file.read()
@@ -232,6 +221,13 @@ def parse_enums(
     except ValidationError as exc:
         print(exc)
 
+    return EMData
+
+
+def parse_enums(
+    xml_path: os.PathLike = Path("src/cryoem_monitor/client/HealthMonitor.xml"),
+) -> Dict[str, Dict[int, str]]:
+    EMData = parse_xml()
     # Write the enumeration values to a JSON file
     data: Dict[str, Dict[int, str]] = {}
     for enum in EMData.enumerations.enumerations:
@@ -243,12 +239,45 @@ def parse_enums(
     return data
 
 
+def component_enums() -> Dict[str, ParameterNames]:
+    EMData = parse_xml()
+    ResponseData: Dict[str, ParameterNames] = {}
+    for outercomponent in EMData.instruments.instrument.component:
+        if outercomponent.components is None:
+            for parameter in outercomponent.parameter:
+                id = parameter.parameterid
+                name = f"{outercomponent.name}_{parameter.name}"
+                if isinstance(parameter.enumerationname, str):
+                    enumeration = parameter.enumerationname
+                    enumeration = enumeration.replace("_enum", "")
+                    ResponseData[id] = ParameterNames(
+                        name=name, enumeration=enumeration
+                    )
+                else:
+                    ResponseData[id] = ParameterNames(name=name, enumeration=None)
+        else:
+            for innercomponent in outercomponent.components:
+                for parameter in innercomponent.parameter:
+                    id = parameter.parameterid
+                    name = f"{innercomponent.name}_{parameter.name}"
+                    if isinstance(parameter.enumerationname, str):
+                        enumeration = parameter.enumerationname
+                        enumeration = enumeration.replace("_enum", "")
+                        ResponseData[id] = ParameterNames(
+                            name=name, enumeration=enumeration
+                        )
+                    else:
+                        ResponseData[id] = ParameterNames(name=name, enumeration=None)
+
+    return ResponseData
+
+
 async def push_data(
     xml_path: os.PathLike = Path("src/cryoem_monitor/client/HealthMonitor.xml"),
-    url_base: str = "http://localhost:8000",
+    url_base: str = "http://127.0.0.1:8000",
 ):
     url = f"{url_base}/set"
-    response: ResponseData = collect(xml_path=xml_path)
+    response: ResponseData = collect()
     data: Dict[str, List[Union[int | float]]] = response.data
     instrument_name: str = response.instrument_name
     for parameter, values in data.items():
@@ -263,6 +292,7 @@ async def push_data(
 
 async def main():
     try:
+        component_enums()
         # save_parameter_names()
         await push_data()
     except Exception as e:
