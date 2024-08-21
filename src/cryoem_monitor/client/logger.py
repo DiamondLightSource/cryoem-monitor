@@ -79,7 +79,7 @@ class Instruments(BaseXmlModel):
 # Classes for type hinting of XML data - Values
 class ValuePar(BaseXmlModel):
     datatype: str = attr(name="Type")
-    value: float | int
+    value: float | int | str
 
 
 class ParameterValue(BaseXmlModel):
@@ -205,6 +205,9 @@ def save_parameter_names(
 
 def parse_xml(
     xml_path: os.PathLike = Path("src/cryoem_monitor/client/HealthMonitor.xml"),
+    # xml_path: os.PathLike = Path(
+    # "health_monitor_Krios4/3632/HealthMonitorCmd_20240813_145321.xml"
+    # ),
 ) -> HealthMonitor:
     # Load and extract required values from XML file
     with open(xml_path) as file:
@@ -224,9 +227,7 @@ def parse_xml(
     return EMData
 
 
-def parse_enums(
-    xml_path: os.PathLike = Path("src/cryoem_monitor/client/HealthMonitor.xml"),
-) -> Dict[str, Dict[int, str]]:
+def parse_enums() -> Dict[str, Dict[int, str]]:
     EMData = parse_xml()
     # Write the enumeration values to a JSON file
     data: Dict[str, Dict[int, str]] = {}
@@ -247,6 +248,7 @@ def component_enums() -> Dict[str, ParameterNames]:
             for parameter in outercomponent.parameter:
                 id = parameter.parameterid
                 name = f"{outercomponent.name}_{parameter.name}"
+                name = name.replace(" ", "_").replace(".", "").replace("-", "")
                 if isinstance(parameter.enumerationname, str):
                     enumeration = parameter.enumerationname
                     enumeration = enumeration.replace("_enum", "")
@@ -260,6 +262,7 @@ def component_enums() -> Dict[str, ParameterNames]:
                 for parameter in innercomponent.parameter:
                     id = parameter.parameterid
                     name = f"{innercomponent.name}_{parameter.name}"
+                    name = name.replace(" ", "_").replace(".", "").replace("-", "")
                     if isinstance(parameter.enumerationname, str):
                         enumeration = parameter.enumerationname
                         enumeration = enumeration.replace("_enum", "")

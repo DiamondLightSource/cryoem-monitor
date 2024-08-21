@@ -2,6 +2,8 @@
 __pycache__/
 *.py[cod]
 
+# Data 
+health_monitor_Krios4
 # C extensions
 *.so
 
