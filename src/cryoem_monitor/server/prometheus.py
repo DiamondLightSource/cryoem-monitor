@@ -40,10 +40,11 @@ ComponentList: Dict[str, ParameterNames] = component_enums()
 
 
 # Create Enumerations and Gauges from ComponentList
+# Note: All Prometheus Metric Names cannot have "." or "-" in the name
 
 Enumerations: Dict[str, Enum] = {
     componentid: Enum(
-        ComponentList[componentid].name,
+        f"{ComponentList[componentid].name}_PID_{componentid}",
         f"PID_{componentid}: {format_string(ComponentList[componentid].name)}",
         states=list(Enum_List[ComponentList[componentid].enumeration].values()),
         labelnames=["instrument"],
@@ -54,7 +55,7 @@ Enumerations: Dict[str, Enum] = {
 
 Gauges: Dict[str, Gauge] = {
     componentid: Gauge(
-        ComponentList[componentid].name,
+        f"{ComponentList[componentid].name}_PID_{componentid}",
         f"PID_{componentid}: {format_string(ComponentList[componentid].name)}",
         ["instrument"],
     )
