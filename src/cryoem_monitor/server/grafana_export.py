@@ -1,0 +1,251 @@
+import json
+from typing import Dict, List, Union
+
+from cryoem_monitor.client.logger import (
+    ParameterNames,
+    Value_Limits,
+    component_enums,
+    limits,
+    parse_enums,
+)
+
+device = "3594, Talos Arctica"
+
+
+# Thresholds definition
+def threshold(
+    critical_min: int | float | None = None,
+    warning_min: int | float | None = None,
+    caution_min: int | float | None = None,
+    caution_max: int | float | None = None,
+    warning_max: int | float | None = None,
+    critical_max: int | float | None = None,
+) -> List[Dict[str, Union[str, int | float | None]]]:  # noqa: E501
+    if critical_min is None and warning_min is None and caution_min is None:
+        thresholds = [
+            {"color": "green", "value": None},
+        ]
+    else:
+        thresholds = [
+            {"color": "red", "value": None},
+        ]
+
+    least_bad_min = (
+        "caution" if caution_min else "warning" if warning_min else "critical"
+    )
+
+    if critical_min is not None:
+        thresholds.append(
+            {
+                "color": "green" if least_bad_min == "critical" else "orange",
+                "value": critical_min,
+            }
+        )
+    if warning_min is not None:
+        thresholds.append(
+            {
+                "color": "green" if least_bad_min == "warning" else "yellow",
+                "value": warning_min,
+            }
+        )
+    if caution_min is not None:
+        thresholds.append(
+            {
+                "color": "green" if least_bad_min == "caution" else "green",
+                "value": caution_min,
+            }
+        )
+    if caution_max is not None:
+        thresholds.append({"color": "yellow", "value": caution_max})
+    if warning_max is not None:
+        thresholds.append({"color": "orange", "value": warning_max})
+    if critical_max is not None:
+        thresholds.append({"color": "red", "value": critical_max})
+
+    return thresholds
+
+
+# Gauge Panel
+def return_gauge(
+    gauge_name: str,
+    critical_min: int | float | None = None,
+    warning_min: int | float | None = None,
+    caution_min: int | float | None = None,
+    caution_max: int | float | None = None,
+    warning_max: int | float | None = None,
+    critical_max: int | float | None = None,
+) -> json:
+    thresholds = threshold(
+        critical_min, warning_min, caution_min, caution_max, warning_max, critical_max
+    )
+
+    return {
+        "datasource": {"type": "prometheus", "uid": "fdrsvc8u0ao00b"},
+        "fieldConfig": {
+            "defaults": {
+                "color": {"mode": "thresholds"},
+                "mappings": [],
+                "thresholds": {
+                    "mode": "absolute",
+                    "steps": thresholds,
+                },
+            },
+            "overrides": [],
+        },
+        "gridPos": {"h": 8, "w": 12, "x": 0, "y": 0},
+        "id": 4,
+        "options": {
+            "minVizHeight": 75,
+            "minVizWidth": 75,
+            "orientation": "auto",
+            "reduceOptions": {"calcs": ["lastNotNone"], "fields": "", "values": False},
+            "showThresholdLabels": False,
+            "showThresholdMarkers": True,
+            "sizing": "auto",
+        },
+        "pluginVersion": "11.1.0",
+        "targets": [
+            {
+                "datasource": {"type": "prometheus", "uid": "fdrsvc8u0ao00b"},
+                "disableTextWrap": False,
+                "editorMode": "builder",
+                "expr": f"{gauge_name}",
+                "fullMetaSearch": False,
+                "includeNoneMetadata": True,
+                "instant": False,
+                "legendFormat": "__auto",
+                "range": True,
+                "refId": "A",
+                "useBackend": False,
+            }
+        ],
+        "title": f"{gauge_name}",
+        "type": "gauge",
+    }
+
+
+# State Panel
+def return_state(
+    state_name: str,
+    critical_min: int | float | None = None,
+    warning_min: int | float | None = None,
+    caution_min: int | float | None = None,
+    caution_max: int | float | None = None,
+    warning_max: int | float | None = None,
+    critical_max: int | float | None = None,
+) -> json:
+    thresholds = threshold(
+        critical_min, warning_min, caution_min, caution_max, warning_max, critical_max
+    )
+
+    return {
+        "datasource": {"type": "prometheus", "uid": "fdrsvc8u0ao00b"},
+        "fieldConfig": {
+            "defaults": {
+                "color": {"mode": "thresholds"},
+                "custom": {
+                    "fillOpacity": 70,
+                    "hideFrom": {"legend": False, "tooltip": False, "viz": False},
+                    "insertNones": False,
+                    "lineWidth": 0,
+                    "spanNones": False,
+                },
+                "mappings": [],
+                "thresholds": {
+                    "mode": "absolute",
+                    "steps": thresholds,
+                },
+            },
+            "overrides": [],
+        },
+        "gridPos": {"h": 8, "w": 12, "x": 0, "y": 8},
+        "id": 3,
+        "options": {
+            "alignValue": "left",
+            "legend": {
+                "displayMode": "list",
+                "placement": "bottom",
+                "showLegend": True,
+            },
+            "mergeValues": True,
+            "rowHeight": 0.9,
+            "showValue": "auto",
+            "tooltip": {"mode": "single", "sort": "none"},
+        },
+        "targets": [
+            {
+                "datasource": {"type": "prometheus", "uid": "fdrsvc8u0ao00b"},
+                "disableTextWrap": False,
+                "editorMode": "builder",
+                "expr": f"{state_name} == 1",
+                "fullMetaSearch": False,
+                "includeNoneMetadata": True,
+                "instant": False,
+                "legendFormat": f"{state_name}",
+                "range": True,
+                "refId": "A",
+                "useBackend": False,
+            }
+        ],
+        "title": f"{state_name}",
+        "type": "state-timeline",
+    }
+
+
+Enum_List: Dict[str, Dict[int, str]] = parse_enums()
+ComponentList: Dict[str, ParameterNames] = component_enums()
+Limits: Dict[str, Value_Limits] = limits()  # id: Value_Limits
+
+with open("src/cryoem_monitor/server/template.json") as file:
+    Template: json = json.load(file)
+
+panels = Template["panels"]
+for componentid in ComponentList:
+    name = f"{ComponentList[componentid].name}_PID_{componentid}"
+    # Check if Component has limits
+    if componentid in Limits:
+        limits = Limits[componentid]
+        critical_min = limits.critical_min
+        warning_min = limits.warning_min
+        caution_min = limits.caution_min
+        caution_max = limits.caution_max
+        warning_max = limits.warning_max
+        critical_max = limits.critical_max
+    else:
+        critical_min = None
+        warning_min = None
+        caution_min = None
+        caution_max = None
+        warning_max = None
+        critical_max = None
+
+    # Check if Component is an Enumeration
+    if ComponentList[componentid].enumeration is None:
+        panels.append(
+            return_gauge(
+                name,
+                critical_min,
+                warning_min,
+                caution_min,
+                caution_max,
+                warning_max,
+                critical_max,
+            )
+        )
+    else:
+        panels.append(
+            return_state(
+                name,
+                critical_min,
+                warning_min,
+                caution_min,
+                caution_max,
+                warning_max,
+                critical_max,
+            )
+        )
+
+Template["panels"] = panels
+
+with open(f"grafana/grafana_{device}.json", "w") as file:
+    json.dump(Template, file, indent=4)

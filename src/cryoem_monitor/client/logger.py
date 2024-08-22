@@ -148,13 +148,22 @@ class HealthMonitor(
 
 
 class ResponseData(BaseModel):
-    data: Dict[str, List[Union[int, float]]]
+    data: Dict[str, List[Union[int, float, str]]]
     instrument_name: str
 
 
 class ParameterNames(BaseModel):
     name: str
     enumeration: Optional[str]
+
+
+class Value_Limits(BaseModel):
+    critical_min: Optional[Union[float, int]]
+    warning_min: Optional[Union[float, int]]
+    caution_min: Optional[Union[float, int]]
+    caution_max: Optional[Union[float, int]]
+    warning_max: Optional[Union[float, int]]
+    critical_max: Optional[Union[float, int]]
 
 
 def parse_datetime(datetime_str: str) -> datetime:
@@ -175,7 +184,7 @@ def collect() -> ResponseData:
     time = time[:26] + "Z"
     time_obj: datetime = parse_datetime(time)
     time_obj = time_obj - timedelta(minutes=25)
-    setup: Dict[str, List[Union[int, float]]] = {}
+    setup: Dict[str, List[Union[int, float, str]]] = {}
     value_data = EMData.values.value_data
     for data in value_data:
         # Extract the parameter values and parameter_id
@@ -227,6 +236,47 @@ def parse_xml(
     return EMData
 
 
+def limits() -> Dict[str, Dict[str, Union[float, int]]]:
+    EMData = parse_xml()
+    data: Dict[str, Value_Limits] = {}
+
+    Data = EMData.values.value_data
+    for value in Data:
+        value_id = value.valueid
+        limits = value.limits
+        if limits != []:
+            for limit in limits.limit:
+                thresholds = limit.thresholds
+                for threshold in thresholds:
+                    name = threshold.name
+                    value = threshold.value
+                    if value is not None:
+                        data_val = value.value
+                        if value_id not in data:
+                            data[value_id] = Value_Limits(
+                                critical_min=None,
+                                warning_min=None,
+                                caution_min=None,
+                                caution_max=None,
+                                warning_max=None,
+                                critical_max=None,
+                            )
+                        if name == "CriticalMin":
+                            data[value_id].critical_min = data_val
+                        elif name == "WarningMin":
+                            data[value_id].warning_min = data_val
+                        elif name == "CautionMin":
+                            data[value_id].caution_min = data_val
+                        elif name == "CautionMax":
+                            data[value_id].caution_max = data_val
+                        elif name == "WarningMax":
+                            data[value_id].warning_max = data_val
+                        elif name == "CriticalMax":
+                            data[value_id].critical_max = data_val
+
+    return data
+
+
 def parse_enums() -> Dict[str, Dict[int, str]]:
     EMData = parse_xml()
     # Write the enumeration values to a JSON file
@@ -244,7 +294,7 @@ def component_enums() -> Dict[str, ParameterNames]:
     EMData = parse_xml()
     ResponseData: Dict[str, ParameterNames] = {}
     for outercomponent in EMData.instruments.instrument.component:
-        if outercomponent.components is None:
+        if outercomponent.components is None and outercomponent.parameter is not None:
             for parameter in outercomponent.parameter:
                 id = parameter.parameterid
                 name = f"{outercomponent.name}_{parameter.name}"
@@ -258,19 +308,28 @@ def component_enums() -> Dict[str, ParameterNames]:
                 else:
                     ResponseData[id] = ParameterNames(name=name, enumeration=None)
         else:
-            for innercomponent in outercomponent.components:
-                for parameter in innercomponent.parameter:
-                    id = parameter.parameterid
-                    name = f"{innercomponent.name}_{parameter.name}"
-                    name = name.replace(" ", "_").replace(".", "").replace("-", "")
-                    if isinstance(parameter.enumerationname, str):
-                        enumeration = parameter.enumerationname
-                        enumeration = enumeration.replace("_enum", "")
-                        ResponseData[id] = ParameterNames(
-                            name=name, enumeration=enumeration
-                        )
-                    else:
-                        ResponseData[id] = ParameterNames(name=name, enumeration=None)
+            if (
+                outercomponent.components is not None
+                and outercomponent.parameter is not None
+            ):
+                for innercomponent in outercomponent.components:
+                    if innercomponent.parameter is not None:
+                        for parameter in innercomponent.parameter:
+                            id = parameter.parameterid
+                            name = f"{innercomponent.name}_{parameter.name}"
+                            name = (
+                                name.replace(" ", "_").replace(".", "").replace("-", "")
+                            )
+                            if isinstance(parameter.enumerationname, str):
+                                enumeration = parameter.enumerationname
+                                enumeration = enumeration.replace("_enum", "")
+                                ResponseData[id] = ParameterNames(
+                                    name=name, enumeration=enumeration
+                                )
+                            else:
+                                ResponseData[id] = ParameterNames(
+                                    name=name, enumeration=None
+                                )
 
     return ResponseData
 
@@ -281,7 +340,7 @@ async def push_data(
 ):
     url = f"{url_base}/set"
     response: ResponseData = collect()
-    data: Dict[str, List[Union[int | float]]] = response.data
+    data: Dict[str, List[Union[int, str, float]]] = response.data
     instrument_name: str = response.instrument_name
     for parameter, values in data.items():
         if values:
@@ -295,8 +354,6 @@ async def push_data(
 
 async def main():
     try:
-        component_enums()
-        # save_parameter_names()
         await push_data()
     except Exception as e:
         print(f"An error has occured: {e}")

@@ -11,6 +11,7 @@ from cryoem_monitor.client.logger import push_data
 
 def run():
     parser = argparse.ArgumentParser(description="Start health monitor data collection")
+    # For each individual argument
     parser.add_argument(
         "--server",
         metavar="HOST:PORT",
