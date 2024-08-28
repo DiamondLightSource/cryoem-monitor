@@ -49,6 +49,7 @@ server = [
 [project.scripts]
 cryoem_monitor = "cryoem_monitor.__main__:main"
 "cryoem_monitor.run" = "cryoem_monitor.cli.main:run"
+"cryoem_monitor.graf-export" = "cryoem_monitor.cli.main:export"
 
 [project.urls]
 GitHub = "https://github.com/DiamondLightSource/cryoem-monitor"

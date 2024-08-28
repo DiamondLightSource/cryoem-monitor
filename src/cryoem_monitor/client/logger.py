@@ -183,7 +183,7 @@ def collect() -> ResponseData:
     time: str = EMData.values.end
     time = time[:26] + "Z"
     time_obj: datetime = parse_datetime(time)
-    time_obj = time_obj - timedelta(minutes=25)
+    time_obj = time_obj - timedelta(minutes=1)
     setup: Dict[str, List[Union[int, float, str]]] = {}
     value_data = EMData.values.value_data
     for data in value_data:
@@ -236,7 +236,7 @@ def parse_xml(
     return EMData
 
 
-def limits() -> Dict[str, Dict[str, Union[float, int]]]:
+def limits() -> Dict[str, Value_Limits]:
     EMData = parse_xml()
     data: Dict[str, Value_Limits] = {}
 
@@ -244,14 +244,14 @@ def limits() -> Dict[str, Dict[str, Union[float, int]]]:
     for value in Data:
         value_id = value.valueid
         limits = value.limits
-        if limits != []:
+        if limits is not None and limits != []:
             for limit in limits.limit:
                 thresholds = limit.thresholds
                 for threshold in thresholds:
                     name = threshold.name
-                    value = threshold.value
-                    if value is not None:
-                        data_val = value.value
+                    thresh_value: Union[ValueThresh, None] = threshold.value
+                    if thresh_value is not None:
+                        data_val = thresh_value.value
                         if value_id not in data:
                             data[value_id] = Value_Limits(
                                 critical_min=None,
