@@ -7,6 +7,7 @@ from pathlib import Path
 import requests
 
 from cryoem_monitor.client.logger import push_data
+from cryoem_monitor.server.grafana_export import grafana_export
 
 
 def run():
@@ -31,3 +32,20 @@ def run():
             time.sleep(config["health_data_collection_timestep"])
         except KeyboardInterrupt:
             break
+
+
+def export():
+    parser = argparse.ArgumentParser(description="Export Grafana Dashboard JSON")
+    # For each individual argument
+    parser.add_argument(
+        "--device",
+        type=str,
+        help="Electron Microscope to create Grafana Dashboard for",
+        required=True,
+    )
+    args = parser.parse_args()
+
+    try:
+        asyncio.run(grafana_export(device=args.device))
+    except KeyboardInterrupt:
+        pass

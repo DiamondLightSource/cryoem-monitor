@@ -1,15 +1,71 @@
 import json
-from typing import Dict, List, Union
+from typing import Any, Dict, List
 
 from cryoem_monitor.client.logger import (
     ParameterNames,
     Value_Limits,
     component_enums,
     limits,
-    parse_enums,
 )
 
-device = "3594, Talos Arctica"
+
+async def grafana_export(device: str):
+    ComponentList: Dict[str, ParameterNames] = component_enums()
+    Limits: Dict[str, Value_Limits] = limits()  # id: Value_Limits
+
+    with open("src/cryoem_monitor/server/template.json") as file:
+        Template = json.load(file)
+
+    panels = Template["panels"]
+    for componentid in ComponentList:
+        name = f"{ComponentList[componentid].name}_PID_{componentid}"
+        # Check if Component has limits
+        if componentid in Limits:
+            thresh_limits = Limits[componentid]
+            critical_min = thresh_limits.critical_min
+            warning_min = thresh_limits.warning_min
+            caution_min = thresh_limits.caution_min
+            caution_max = thresh_limits.caution_max
+            warning_max = thresh_limits.warning_max
+            critical_max = thresh_limits.critical_max
+        else:
+            critical_min = None
+            warning_min = None
+            caution_min = None
+            caution_max = None
+            warning_max = None
+            critical_max = None
+
+        # Check if Component is an Enumeration
+        if ComponentList[componentid].enumeration is None:
+            panels.append(
+                return_gauge(
+                    name,
+                    critical_min,
+                    warning_min,
+                    caution_min,
+                    caution_max,
+                    warning_max,
+                    critical_max,
+                )
+            )
+        else:
+            panels.append(
+                return_state(
+                    name,
+                    critical_min,
+                    warning_min,
+                    caution_min,
+                    caution_max,
+                    warning_max,
+                    critical_max,
+                )
+            )
+
+    Template["panels"] = panels
+
+    with open(f"grafana/grafana_{device}.json", "w") as file:
+        json.dump(Template, file, indent=4)
 
 
 # Thresholds definition
@@ -20,9 +76,9 @@ def threshold(
     caution_max: int | float | None = None,
     warning_max: int | float | None = None,
     critical_max: int | float | None = None,
-) -> List[Dict[str, Union[str, int | float | None]]]:  # noqa: E501
+) -> List[Dict[str, Any]]:
     if critical_min is None and warning_min is None and caution_min is None:
-        thresholds = [
+        thresholds: List[Dict[str, Any]] = [
             {"color": "green", "value": None},
         ]
     else:
@@ -74,7 +130,7 @@ def return_gauge(
     caution_max: int | float | None = None,
     warning_max: int | float | None = None,
     critical_max: int | float | None = None,
-) -> json:
+) -> dict:
     thresholds = threshold(
         critical_min, warning_min, caution_min, caution_max, warning_max, critical_max
     )
@@ -133,7 +189,7 @@ def return_state(
     caution_max: int | float | None = None,
     warning_max: int | float | None = None,
     critical_max: int | float | None = None,
-) -> json:
+) -> dict:
     thresholds = threshold(
         critical_min, warning_min, caution_min, caution_max, warning_max, critical_max
     )
@@ -192,60 +248,4 @@ def return_state(
     }
 
 
-Enum_List: Dict[str, Dict[int, str]] = parse_enums()
-ComponentList: Dict[str, ParameterNames] = component_enums()
-Limits: Dict[str, Value_Limits] = limits()  # id: Value_Limits
-
-with open("src/cryoem_monitor/server/template.json") as file:
-    Template: json = json.load(file)
-
-panels = Template["panels"]
-for componentid in ComponentList:
-    name = f"{ComponentList[componentid].name}_PID_{componentid}"
-    # Check if Component has limits
-    if componentid in Limits:
-        limits = Limits[componentid]
-        critical_min = limits.critical_min
-        warning_min = limits.warning_min
-        caution_min = limits.caution_min
-        caution_max = limits.caution_max
-        warning_max = limits.warning_max
-        critical_max = limits.critical_max
-    else:
-        critical_min = None
-        warning_min = None
-        caution_min = None
-        caution_max = None
-        warning_max = None
-        critical_max = None
-
-    # Check if Component is an Enumeration
-    if ComponentList[componentid].enumeration is None:
-        panels.append(
-            return_gauge(
-                name,
-                critical_min,
-                warning_min,
-                caution_min,
-                caution_max,
-                warning_max,
-                critical_max,
-            )
-        )
-    else:
-        panels.append(
-            return_state(
-                name,
-                critical_min,
-                warning_min,
-                caution_min,
-                caution_max,
-                warning_max,
-                critical_max,
-            )
-        )
-
-Template["panels"] = panels
-
-with open(f"grafana/grafana_{device}.json", "w") as file:
-    json.dump(Template, file, indent=4)
+# await grafana_export("3594, Talos Arctica")

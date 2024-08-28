@@ -41,17 +41,16 @@ ComponentList: Dict[str, ParameterNames] = component_enums()
 
 # Create Enumerations and Gauges from ComponentList
 # Note: All Prometheus Metric Names cannot have "." or "-" in the name
-
-Enumerations: Dict[str, Enum] = {
-    componentid: Enum(
-        f"{ComponentList[componentid].name}_PID_{componentid}",
-        f"PID_{componentid}: {format_string(ComponentList[componentid].name)}",
-        states=list(Enum_List[ComponentList[componentid].enumeration].values()),
-        labelnames=["instrument"],
-    )
-    for componentid in ComponentList
-    if ComponentList[componentid].enumeration is not None
-}
+Enumerations: Dict[str, Enum] = {}
+for componentid in ComponentList:
+    enum_val = ComponentList[componentid].enumeration
+    if enum_val is not None:
+        Enumerations[componentid] = Enum(
+            f"{ComponentList[componentid].name}_PID_{componentid}",
+            f"PID_{componentid}: {format_string(ComponentList[componentid].name)}",
+            states=list(Enum_List[enum_val].values()),
+            labelnames=["instrument"],
+        )
 
 Gauges: Dict[str, Gauge] = {
     componentid: Gauge(
@@ -92,29 +91,30 @@ async def set_value(
     request: HealthMonitorData,
 ):
     payload = request
+    # Check validity of payload value and if it is a list or not
+    values = payload.value
+    if values is None:
+        raise ValueError("Value header is missing or empty.")
+    if not isinstance(values, list):
+        values = [values]
+
     try:
         header_type = payload.type
         instrument_name = payload.instrument
         if instrument_name is None:
             raise ValueError("Instrument name is missing or empty.")
+        # Check if the header type is in the Enumerations, Gauge or Increment_map
         if header_type in Enumerations:
-            values = payload.value
-            if values is None:
-                raise ValueError("Value header is missing or empty.")
             for value in values:
+                enum_val = ComponentList[header_type].enumeration
+                if enum_val is None:
+                    raise ValueError("Enumeration is missing or empty.")
                 Enumerations[header_type].labels(instrument=instrument_name).state(
-                    Enum_List[ComponentList[header_type].enumeration][int(value)]
+                    Enum_List[enum_val][int(value)]
                 )
         elif header_type in Gauges:
-            value = payload.value
-            if value is None:
-                raise ValueError("Value header is missing or empty.")
-
-            # If no errors raised, set the last value and label with the instrument name
-            if isinstance(value, list):
-                Gauges[header_type].labels(instrument_name).set(float(value[-1]))
-            else:
-                Gauges[header_type].labels(instrument_name).set(float(value))
+            # Set the last value and label with the instrument name
+            Gauges[header_type].labels(instrument_name).set(float(values[-1]))
         elif header_type in increment_map:
             # If no errors raised, increment counter and label with instrument name
             increment_map[header_type].labels(instrument_name).inc(1)
