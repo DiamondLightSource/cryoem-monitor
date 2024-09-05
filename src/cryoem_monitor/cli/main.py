@@ -20,6 +20,12 @@ def run():
         help="Monitor server to connect to",
         required=True,
     )
+    parser.add_argument(
+        "--path",
+        type=str,
+        help="Path to health data XML file",
+        required=True,
+    )
     args = parser.parse_args()
 
     config = requests.get(f"{args.server}/config").json()
