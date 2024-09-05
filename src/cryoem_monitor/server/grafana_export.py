@@ -1,4 +1,5 @@
 import json
+import os
 from typing import Any, Dict, List
 
 from cryoem_monitor.client.logger import (
@@ -9,8 +10,8 @@ from cryoem_monitor.client.logger import (
 )
 
 
-async def grafana_export(device: str):
-    ComponentList: Dict[str, ParameterNames] = component_enums()
+async def grafana_export(device: str, xml_path: os.PathLike):
+    ComponentList: Dict[str, ParameterNames] = component_enums(xml_path=xml_path)
     Limits: Dict[str, Value_Limits] = limits()  # id: Value_Limits
 
     with open("grafana/template.json") as file:

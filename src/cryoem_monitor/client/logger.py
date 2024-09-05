@@ -171,9 +171,9 @@ def parse_datetime(datetime_str: str) -> datetime:
         return datetime.strptime(datetime_str, "%Y-%m-%dT%H:%M:%SZ")
 
 
-def collect() -> ResponseData:
+def collect(xml_path: os.PathLike) -> ResponseData:
     # Load and extract required values from XML file
-    EMData = parse_xml()
+    EMData = parse_xml(xml_path=xml_path)
 
     # Extract the required values from the XML data
     instrument_name: str = EMData.values.instrument
@@ -204,7 +204,7 @@ def save_parameter_names(
     xml_path: os.PathLike = Path("src/cryoem_monitor/client/HealthMonitor.xml"),
     json_out_path: os.PathLike = Path("src/cryoem_monitor/client/parameter_names.json"),
 ):
-    vals: ResponseData = collect()
+    vals: ResponseData = collect(xml_path=xml_path)
     with open(json_out_path, "w") as file:
         json.dump({"parameter_names": list(vals.data.keys())}, file, indent=4)
 
@@ -274,8 +274,8 @@ def limits() -> Dict[str, Value_Limits]:
     return data
 
 
-def parse_enums() -> Dict[str, Dict[int, str]]:
-    EMData = parse_xml()
+def parse_enums(xml_path: os.PathLike) -> Dict[str, Dict[int, str]]:
+    EMData = parse_xml(xml_path=xml_path)
     # Write the enumeration values to a JSON file
     data: Dict[str, Dict[int, str]] = {}
     for enum in EMData.enumerations.enumerations:
@@ -287,8 +287,8 @@ def parse_enums() -> Dict[str, Dict[int, str]]:
     return data
 
 
-def component_enums() -> Dict[str, ParameterNames]:
-    EMData = parse_xml()
+def component_enums(xml_path: os.PathLike) -> Dict[str, ParameterNames]:
+    EMData = parse_xml(xml_path=xml_path)
     ResponseData: Dict[str, ParameterNames] = {}
     for outercomponent in EMData.instruments.instrument.component:
         if outercomponent.components is None and outercomponent.parameter is not None:
@@ -336,7 +336,7 @@ async def push_data(
     url_base: str = "http://127.0.0.1:8000",
 ):
     url = f"{url_base}/set"
-    response: ResponseData = collect()
+    response: ResponseData = collect(xml_path=xml_path)
     data: Dict[str, List[Union[int, str, float]]] = response.data
     instrument_name: str = response.instrument_name
     for parameter, values in data.items():
