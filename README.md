@@ -5,8 +5,7 @@
 
 # cryoem-monitor
 
-Electron Microscope monitoring system using prometheus
-
+Electron Microscope Monitoring System using Prometheus with an Visualisation using Grafana Endpoint
 
 Source          | <https://github.com/DiamondLightSource/cryoem-monitor>
 :---:           | :---:
@@ -20,8 +19,27 @@ from cryoem_monitor import __version__
 print(f"Hello cryoem_monitor {__version__}")
 ```
 
-Or if it is a commandline tool then you might put some example commands here:
+Run FastAPI Server 
+
+Before you create the FastAPI server, export the path variable where the XML file from the EM is stored.
 
 ```
-python -m cryoem_monitor --version
+export ${PATH_VARIABLE}
+fastapi run src/cryoem_monitor/server/prometheus.py
+```
+
+
+Run Diagnostic Data Collection
+- XML_file_path is where you have HealthMonitor Data setup (It should be the same as the ${PATH_VARIABLE})
+- Sever port is the link to the FastAPI prometheus server which is interfaced with
+
+```
+cryoem_monitor.run --path ${XML_file_path} --server ${server_port}
+```
+
+Export Base Grafana Template 
+- This creates a base Grafana Dashboard JSON file that can be imported containing all Parameters 
+
+```
+cryoem_monitor.graf-export --device ${EM_device_name}
 ```

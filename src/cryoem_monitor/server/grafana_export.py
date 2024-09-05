@@ -13,7 +13,7 @@ async def grafana_export(device: str):
     ComponentList: Dict[str, ParameterNames] = component_enums()
     Limits: Dict[str, Value_Limits] = limits()  # id: Value_Limits
 
-    with open("src/cryoem_monitor/server/template.json") as file:
+    with open("grafana/template.json") as file:
         Template = json.load(file)
 
     panels = Template["panels"]

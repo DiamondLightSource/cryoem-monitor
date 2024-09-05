@@ -109,7 +109,7 @@ class Threshold(BaseXmlModel):
     value: Optional[ValueThresh] = element(tag="Value", default=None)
 
 
-class Limit(BaseXmlModel, tag="Limit"):
+class Limit(BaseXmlModel):
     timestamp: str = attr(name="Timestamp")
     thresholds: List[Threshold] = element(tag="Threshold")
 
@@ -138,10 +138,7 @@ class Values(BaseXmlModel):
 
 
 # Class for type hinting of XML data - HealthMonitor (top level)
-class HealthMonitor(
-    BaseXmlModel,
-    tag="HealthMonitor",
-):
+class HealthMonitor(BaseXmlModel):
     enumerations: Enumerations = element(tag="Enumerations")
     instruments: Instruments = element(tag="Instruments")
     values: Values = element(tag="Values")
