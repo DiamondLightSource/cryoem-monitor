@@ -1,6 +1,6 @@
 import json
 import os
-from typing import Any, Dict, List
+from typing import Any, Dict, List, Union
 
 from cryoem_monitor.client.logger import (
     ParameterNames,
@@ -71,12 +71,12 @@ async def grafana_export(device: str, xml_path: os.PathLike):
 
 # Thresholds definition
 def threshold(
-    critical_min: int | float | None = None,
-    warning_min: int | float | None = None,
-    caution_min: int | float | None = None,
-    caution_max: int | float | None = None,
-    warning_max: int | float | None = None,
-    critical_max: int | float | None = None,
+    critical_min: Union[int, float, None] = None,
+    warning_min: Union[int, float, None] = None,
+    caution_min: Union[int, float, None] = None,
+    caution_max: Union[int, float, None] = None,
+    warning_max: Union[int, float, None] = None,
+    critical_max: Union[int, float, None] = None,
 ) -> List[Dict[str, Any]]:
     if critical_min is None and warning_min is None and caution_min is None:
         thresholds: List[Dict[str, Any]] = [
@@ -125,12 +125,12 @@ def threshold(
 # Gauge Panel
 def return_gauge(
     gauge_name: str,
-    critical_min: int | float | None = None,
-    warning_min: int | float | None = None,
-    caution_min: int | float | None = None,
-    caution_max: int | float | None = None,
-    warning_max: int | float | None = None,
-    critical_max: int | float | None = None,
+    critical_min: Union[int, float, None] = None,
+    warning_min: Union[int, float, None] = None,
+    caution_min: Union[int, float, None] = None,
+    caution_max: Union[int, float, None] = None,
+    warning_max: Union[int, float, None] = None,
+    critical_max: Union[int, float, None] = None,
 ) -> dict:
     thresholds = threshold(
         critical_min, warning_min, caution_min, caution_max, warning_max, critical_max
@@ -184,12 +184,12 @@ def return_gauge(
 # State Panel
 def return_state(
     state_name: str,
-    critical_min: int | float | None = None,
-    warning_min: int | float | None = None,
-    caution_min: int | float | None = None,
-    caution_max: int | float | None = None,
-    warning_max: int | float | None = None,
-    critical_max: int | float | None = None,
+    critical_min: Union[int, float, None] = None,
+    warning_min: Union[int, float, None] = None,
+    caution_min: Union[int, float, None] = None,
+    caution_max: Union[int, float, None] = None,
+    warning_max: Union[int, float, None] = None,
+    critical_max: Union[int, float, None] = None,
 ) -> dict:
     thresholds = threshold(
         critical_min, warning_min, caution_min, caution_max, warning_max, critical_max

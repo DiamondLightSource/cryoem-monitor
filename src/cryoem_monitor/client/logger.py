@@ -79,7 +79,7 @@ class Instruments(BaseXmlModel):
 # Classes for type hinting of XML data - Values
 class ValuePar(BaseXmlModel):
     datatype: str = attr(name="Type")
-    value: float | int | str
+    value: Union[float, int, str]
 
 
 class ParameterValue(BaseXmlModel):
@@ -93,7 +93,7 @@ class ParameterValues(BaseXmlModel):
 
 class ValueThresh(BaseXmlModel):
     datatype: str = attr(name="Type")
-    value: int | float
+    value: Union[int, float]
 
 
 class Threshold(BaseXmlModel):
