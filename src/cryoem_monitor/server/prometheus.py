@@ -1,5 +1,7 @@
+import os
 import re
 import traceback
+from pathlib import Path
 from typing import Dict, List, Union
 
 import uvicorn
@@ -17,6 +19,14 @@ from cryoem_monitor.client.logger import ParameterNames, component_enums, parse_
 from cryoem_monitor.server.config import router
 
 app = FastAPI()
+try:
+    path = os.getenv("PATH_VARIABLE")
+    if path is not None:
+        xml_path: os.PathLike = Path(path)
+    else:
+        raise ValueError("No path variable added")
+except ValueError as e:
+    print(f"Error: {e}")
 
 
 def format_string(s: str) -> str:
@@ -35,8 +45,8 @@ Summary("SERVER_REQUEST", "Overall Server Summary of EM parameter values")
 
 # Create Enumerations for Prometheus Backend
 # Call all enumerations and Components from function
-Enum_List: Dict[str, Dict[int, str]] = parse_enums()
-ComponentList: Dict[str, ParameterNames] = component_enums()
+Enum_List: Dict[str, Dict[int, str]] = parse_enums(xml_path)
+ComponentList: Dict[str, ParameterNames] = component_enums(xml_path)
 
 
 # Create Enumerations and Gauges from ComponentList
