@@ -5,7 +5,7 @@ from pathlib import Path
 from typing import Dict, List, Union
 
 import uvicorn
-from fastapi import FastAPI
+from fastapi import APIRouter, FastAPI
 from prometheus_client import (
     Counter,
     Enum,
@@ -19,6 +19,9 @@ from cryoem_monitor.client.logger import ParameterNames, component_enums, parse_
 from cryoem_monitor.server.config import router
 
 app = FastAPI()
+
+prom_router = APIRouter()
+
 try:
     path = os.getenv("PATH_VARIABLE")
     if path is not None:
@@ -96,7 +99,7 @@ class HealthMonitorData(BaseModel):
 
 
 # Handle different values based on if it is a gauge or an enum
-@app.post("/set")
+@prom_router.post("/set")
 async def set_value(
     request: HealthMonitorData,
 ):
@@ -135,6 +138,8 @@ async def set_value(
         print(f"{header_type} and {e}")
         return {"error": str(e)}
 
+
+app.include_router(prom_router)
 
 # For Debugging Purposes
 if __name__ == "__prometheus__":
