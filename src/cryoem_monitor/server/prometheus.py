@@ -16,14 +16,16 @@ from prometheus_client import (
 from pydantic import BaseModel
 
 from cryoem_monitor.client.logger import ParameterNames, component_enums, parse_enums
-from cryoem_monitor.server.config import router
+from cryoem_monitor.server.config import from_file, router
 
 app = FastAPI()
 
 prom_router = APIRouter()
 
 try:
-    path = os.getenv("PATH_VARIABLE")
+    path = from_file(Path(os.environ["CRYOEM_MONITOR_CONFIG"])).get(
+        "health_monitor_xml"
+    )
     if path is not None:
         xml_path: os.PathLike = Path(path)
     else:
