@@ -23,9 +23,7 @@ app = FastAPI()
 prom_router = APIRouter()
 
 try:
-    path = from_file(Path(os.environ["CRYOEM_MONITOR_CONFIG"])).get(
-        "health_monitor_xml"
-    )
+    path = from_file(Path(os.environ["CRYOEM_MONITOR_CONFIG"])).health_monitor_xml
     if path is not None:
         xml_path: os.PathLike = Path(path)
     else:
