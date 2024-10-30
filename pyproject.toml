@@ -11,7 +11,7 @@ classifiers = [
     "Programming Language :: Python :: 3.11",
 ]
 description = "Electron Microscope monitoring system using prometheus"
-dependencies = [] # Add project dependencies here, e.g. ["click", "numpy"]
+dependencies = ["backports.entry_points_selectable"] # Add project dependencies here, e.g. ["click", "numpy"]
 dynamic = ["version"]
 license.file = "LICENSE"
 readme = "README.md"
@@ -53,6 +53,8 @@ cryoem_monitor = "cryoem_monitor.__main__:main"
 "cryoem_monitor.graf-export" = "cryoem_monitor.cli.main:export"
 [project.entry-points."murfey.routers"]
 "cryoem_monitor" = "cryoem_monitor.server.prometheus:prom_router"
+[project.entry-points."murfey.config"]
+"cryoem_monitor" = "cryoem_monitor.server.config:CryoEMMonitorConfig"
 
 [project.urls]
 GitHub = "https://github.com/DiamondLightSource/cryoem-monitor"
