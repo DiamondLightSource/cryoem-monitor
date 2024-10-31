@@ -23,7 +23,7 @@ def from_file(config_file_path: Path) -> CryoEMMonitorConfig:
     return CryoEMMonitorConfig(**config)
 
 def get_config() -> CryoEMMonitorConfig:
-    if config_extraction_eps := entry_points.select(group="murfey.config.extraction", name="murfey_machine"):
+    if config_extraction_eps := entry_points().select(group="murfey.config.extraction", name="murfey_machine"):
         return config_extraction_eps[0].load()("cryoem_monitor")
     return from_file(Path(os.environ["CRYOEM_MONITOR_CONFIG"]))
 
