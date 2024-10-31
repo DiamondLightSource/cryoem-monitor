@@ -67,9 +67,9 @@ for componentid in ComponentList:
 
 Gauges: Dict[str, Gauge] = {
     componentid: Gauge(
-        f"{ComponentList[componentid].name}_PID_{componentid}",
+        f"temhealth_{ComponentList[componentid].name}",
         f"PID_{componentid}: {format_string(ComponentList[componentid].name)}",
-        ["instrument"],
+        ["instrument", "pid"],
     )
     for componentid in ComponentList
     if ComponentList[componentid].enumeration is None
@@ -127,7 +127,7 @@ async def set_value(
                 )
         elif header_type in Gauges:
             # Set the last value and label with the instrument name
-            Gauges[header_type].labels(instrument_name).set(float(values[-1]))
+            Gauges[header_type].labels(instrument_name, header_type).set(float(values[-1]))
         elif header_type in increment_map:
             # If no errors raised, increment counter and label with instrument name
             increment_map[header_type].labels(instrument_name).inc(1)
