@@ -53,6 +53,7 @@ cryoem_monitor = "cryoem_monitor.__main__:main"
 "cryoem_monitor.graf-export" = "cryoem_monitor.cli.main:export"
 [project.entry-points."murfey.routers"]
 "cryoem_monitor" = "cryoem_monitor.server.prometheus:prom_router"
+"cryoem_monitor_config" = "cryoem_monitor.server.config:router"
 [project.entry-points."murfey.config"]
 "cryoem_monitor" = "cryoem_monitor.server.config:CryoEMMonitorConfig"
 
