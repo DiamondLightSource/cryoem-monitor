@@ -3,7 +3,7 @@ import json
 import os
 from datetime import datetime, timedelta
 from pathlib import Path
-from typing import Dict, List, Literal, Optional, Union
+from typing import Dict, List, Literal, Optional, Tuple, Union
 
 import requests
 from pydantic import BaseModel, ValidationError
@@ -171,7 +171,9 @@ def parse_datetime(datetime_str: str) -> datetime:
         return datetime.strptime(datetime_str, "%Y-%m-%dT%H:%M:%SZ")
 
 
-def collect(xml_path: os.PathLike) -> ResponseData:
+def collect(
+    xml_path: os.PathLike,
+) -> Tuple[str, Dict[str, List[Union[int, float, str]]]]:
     # Load and extract required values from XML file
     EMData = parse_xml(xml_path=xml_path)
 
@@ -195,8 +197,7 @@ def collect(xml_path: os.PathLike) -> ResponseData:
                 if value_time >= time_obj:
                     setup[name].append(parameter.value.value)
 
-    response = ResponseData(data=setup, instrument_name=instrument_name)
-    return response
+    return instrument_name, setup
 
 
 # Saving the parameter names to a JSON file
@@ -204,9 +205,9 @@ def save_parameter_names(
     xml_path: os.PathLike = Path("src/cryoem_monitor/client/HealthMonitor.xml"),
     json_out_path: os.PathLike = Path("src/cryoem_monitor/client/parameter_names.json"),
 ):
-    vals: ResponseData = collect(xml_path=xml_path)
+    instrument_name, data = collect(xml_path=xml_path)
     with open(json_out_path, "w") as file:
-        json.dump({"parameter_names": list(vals.data.keys())}, file, indent=4)
+        json.dump({"parameter_names": list(data.keys())}, file, indent=4)
 
 
 def parse_xml(
@@ -336,9 +337,7 @@ async def push_data(
     url_base: str = "http://127.0.0.1:8000",
 ):
     url = f"{url_base}/set"
-    response: ResponseData = collect(xml_path=xml_path)
-    data: Dict[str, List[Union[int, str, float]]] = response.data
-    instrument_name: str = response.instrument_name
+    instrument_name, data = collect(xml_path=xml_path)
     for parameter, values in data.items():
         if values:
             payload = {
