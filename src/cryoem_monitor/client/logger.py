@@ -343,7 +343,7 @@ async def push_data(
         if values:
             payload = {
                 "type": parameter,
-                "value": values,
+                "value": [str(v) for v in values],
                 "instrument": instrument_name,
             }
             requests.post(url, json=payload)
