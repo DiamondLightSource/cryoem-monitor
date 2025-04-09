@@ -171,7 +171,10 @@ def parse_datetime(datetime_str: str) -> datetime:
         try:
             return datetime.strptime(datetime_str, "%Y-%m-%dT%H:%M:%SZ")
         except ValueError:
-            return datetime.strptime(datetime_str, "%Y-%m-%dT%H:%M:%S.%fZZ")
+            try:
+                return datetime.strptime(datetime_str, "%Y-%m-%dT%H:%M:%S.%fZZ")
+            except:
+                return datetime.strptime(datetime_str, "%Y-%m-%dT%H:%M:%S.%f%z")
 
 
 def collect(
