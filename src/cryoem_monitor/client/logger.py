@@ -1,7 +1,7 @@
 import asyncio
 import json
 import os
-from datetime import datetime, timedelta
+from datetime import datetime, timedelta, timezone
 from pathlib import Path
 from typing import Dict, List, Literal, Optional, Tuple, Union
 
@@ -165,16 +165,19 @@ class Value_Limits(BaseModel):
 
 def parse_datetime(datetime_str: str) -> datetime:
     # Parse to datetime object with and wwithout fractional seconds
-    try:
-        return datetime.strptime(datetime_str, "%Y-%m-%dT%H:%M:%S.%fZ")
-    except ValueError:
+    known_time_formats = [
+        "%Y-%m-%dT%H:%M:%S.%fZ",
+        "%Y-%m-%dT%H:%M:%SZ",
+        "%Y-%m-%dT%H:%M:%S.%fZZ",
+        "%Y-%m-%dT%H:%M:%S.%f%z",
+        "%Y-%m-%dT%H:%M:%S%z",
+    ]
+    for time_format in known_time_formats:
         try:
-            return datetime.strptime(datetime_str, "%Y-%m-%dT%H:%M:%SZ")
+            return datetime.strptime(datetime_str, time_format)
         except ValueError:
-            try:
-                return datetime.strptime(datetime_str, "%Y-%m-%dT%H:%M:%S.%fZZ")
-            except:
-                return datetime.strptime(datetime_str, "%Y-%m-%dT%H:%M:%S.%f%z")
+            continue
+    raise ValueError(f"No time formats fit for {datetime_str}")
 
 
 def collect(
@@ -200,6 +203,8 @@ def collect(
         for value in values:
             for parameter in value.parameter_value:
                 value_time: datetime = parse_datetime(parameter.timestamp)
+                value_time = value_time.replace(tzinfo=timezone.utc)
+                time_obj = time_obj.replace(tzinfo=timezone.utc)
                 if value_time >= time_obj:
                     setup[name].append(parameter.value.value)
 
