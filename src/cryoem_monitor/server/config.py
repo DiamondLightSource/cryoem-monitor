@@ -1,9 +1,9 @@
 import os
-from backports.entry_points_selectable import entry_points
 from pathlib import Path
 from typing import List, Optional
 
 import yaml
+from backports.entry_points_selectable import entry_points
 from fastapi import APIRouter
 from pydantic import BaseModel
 
@@ -22,10 +22,14 @@ def from_file(config_file_path: Path) -> CryoEMMonitorConfig:
         config = yaml.safe_load(config_stream)
     return CryoEMMonitorConfig(**config)
 
+
 def get_config() -> CryoEMMonitorConfig:
-    if config_extraction_eps := entry_points().select(group="murfey.config.extraction", name="murfey_machine"):
+    if config_extraction_eps := entry_points().select(
+        group="murfey.config.extraction", name="murfey_machine"
+    ):
         return config_extraction_eps[0].load()("cryoem_monitor")
     return from_file(Path(os.environ["CRYOEM_MONITOR_CONFIG"]))
+
 
 @router.get("/config")
 def return_config():
