@@ -65,15 +65,21 @@ for componentid in ComponentList:
             labelnames=["instrument"],
         )
 
-Gauges: Dict[str, Gauge] = {
-    componentid: Gauge(
-        f"temhealth_{ComponentList[componentid].name}",
-        f"PID_{componentid}: {format_string(ComponentList[componentid].name)}",
-        ["instrument", "pid"],
-    )
-    for componentid in ComponentList
-    if ComponentList[componentid].enumeration is None
-}
+Gauges: Dict[str, Gauge] = {}
+gauges_by_name: Dict[str, Gauge] = {}
+
+for componentid in ComponentList:
+    if ComponentList[componentid].enumeration is None:
+        try:
+            Gauges[componentid] = Gauge(
+                f"temhealth_{ComponentList[componentid].name}",
+                f"{format_string(ComponentList[componentid].name)}",
+                ["instrument", "pid"],
+            )
+            gauges_by_name[ComponentList[componentid].name] = Gauges[componentid]
+        except ValueError:
+            Gauges[componentid] = gauges_by_name[ComponentList[componentid].name]
+
 
 # Counters and Histogram - these are created manually and are extrapolated from Gauges
 # NB: This should be done with removing according modifying Gauges
