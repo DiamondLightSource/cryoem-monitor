@@ -2,7 +2,7 @@ import os
 import re
 import traceback
 from pathlib import Path
-from typing import Dict, List, Union
+from typing import Union
 
 import uvicorn
 from fastapi import APIRouter, FastAPI
@@ -48,13 +48,13 @@ Summary("SERVER_REQUEST", "Overall Server Summary of EM parameter values")
 
 # Create Enumerations for Prometheus Backend
 # Call all enumerations and Components from function
-Enum_List: Dict[str, Dict[int, str]] = parse_enums(xml_path)
-ComponentList: Dict[str, ParameterNames] = component_enums(xml_path)
+Enum_List: dict[str, dict[int, str]] = parse_enums(xml_path)
+ComponentList: dict[str, ParameterNames] = component_enums(xml_path)
 
 
 # Create Enumerations and Gauges from ComponentList
 # Note: All Prometheus Metric Names cannot have "." or "-" in the name
-Enumerations: Dict[str, Enum] = {}
+Enumerations: dict[str, Enum] = {}
 for componentid in ComponentList:
     enum_val = ComponentList[componentid].enumeration
     if enum_val is not None:
@@ -65,8 +65,8 @@ for componentid in ComponentList:
             labelnames=["instrument"],
         )
 
-Gauges: Dict[str, Gauge] = {}
-gauges_by_name: Dict[str, Gauge] = {}
+Gauges: dict[str, Gauge] = {}
+gauges_by_name: dict[str, Gauge] = {}
 
 for componentid in ComponentList:
     if ComponentList[componentid].enumeration is None:
@@ -101,7 +101,7 @@ app.include_router(router)
 class HealthMonitorData(BaseModel):
     type: str
     instrument: str
-    value: List[Union[str, float, int]]
+    value: list[Union[str, float, int]]
 
 
 # Handle different values based on if it is a gauge or an enum

@@ -3,7 +3,7 @@ import json
 import os
 from datetime import datetime, timedelta, timezone
 from pathlib import Path
-from typing import Dict, List, Literal, Optional, Tuple, Union
+from typing import Literal, Optional, Union
 
 import requests
 from pydantic import BaseModel, ValidationError
@@ -26,11 +26,11 @@ class EMLiteral(BaseXmlModel):
 class EMEnumeration(BaseXmlModel):
     name: str = attr(name="Name")
     instrument: str = attr(name="Instrument")
-    literals: List[EMLiteral] = element(tag="Literal")
+    literals: list[EMLiteral] = element(tag="Literal")
 
 
 class Enumerations(BaseXmlModel):
-    enumerations: List[EMEnumeration] = element(tag="Enumeration")
+    enumerations: list[EMEnumeration] = element(tag="Enumeration")
 
 
 # Classes for type hinting of XML data - Instruments
@@ -58,8 +58,8 @@ class Component(BaseXmlModel):
     servicecategory: str = attr(name="ServiceCategory")
     # Used to self-reference when you have sub-components of the same type
     # All optional fields are set to None by default or an empty list
-    components: Optional[List["Component"]] = element(tag="Component", default=None)
-    parameter: Optional[List[Parameter]] = element(
+    components: Optional[list["Component"]] = element(tag="Component", default=None)
+    parameter: Optional[list[Parameter]] = element(
         tag="Parameter", default_factory=list
     )
 
@@ -69,7 +69,7 @@ class Instrument(BaseXmlModel):
     displayname: str = attr(name="DisplayName")
     heartbeat: str = attr(name="HeartBeat")
     servicelogbook: str = attr(name="ServiceLogbook")
-    component: List[Component] = element(tag="Component")
+    component: list[Component] = element(tag="Component")
 
 
 class Instruments(BaseXmlModel):
@@ -88,7 +88,7 @@ class ParameterValue(BaseXmlModel):
 
 
 class ParameterValues(BaseXmlModel):
-    parameter_value: List[ParameterValue] = element(tag="ParameterValue")
+    parameter_value: list[ParameterValue] = element(tag="ParameterValue")
 
 
 class ValueThresh(BaseXmlModel):
@@ -111,11 +111,11 @@ class Threshold(BaseXmlModel):
 
 class Limit(BaseXmlModel):
     timestamp: str = attr(name="Timestamp")
-    thresholds: List[Threshold] = element(tag="Threshold")
+    thresholds: list[Threshold] = element(tag="Threshold")
 
 
 class Limits(BaseXmlModel):
-    limit: List[Limit] = element(tag="Limit")
+    limit: list[Limit] = element(tag="Limit")
 
 
 class ValueData(BaseXmlModel):
@@ -124,7 +124,7 @@ class ValueData(BaseXmlModel):
     valueid: str = attr(name="ParameterID")
     parameter: str = attr(name="Parameter")
     # Sometimes, pydantic cannot identify element as part of list, so initialize
-    parameter_value: List[ParameterValues] = element(
+    parameter_value: list[ParameterValues] = element(
         tag="ParameterValues", default_factory=list
     )
     limits: Optional[Limits] = element(tag="Limits", default_factory=list)
@@ -134,7 +134,7 @@ class Values(BaseXmlModel):
     start: str = attr(name="Start")
     end: str = attr(name="End")
     instrument: str = attr(name="Instrument")
-    value_data: List[ValueData] = element(tag="ValueData")
+    value_data: list[ValueData] = element(tag="ValueData")
 
 
 # Class for type hinting of XML data - HealthMonitor (top level)
@@ -145,7 +145,7 @@ class HealthMonitor(BaseXmlModel):
 
 
 class ResponseData(BaseModel):
-    data: Dict[str, List[Union[int, float, str]]]
+    data: dict[str, list[Union[int, float, str]]]
     instrument_name: str
 
 
@@ -183,7 +183,7 @@ def parse_datetime(datetime_str: str) -> datetime:
 
 def collect(
     xml_path: os.PathLike,
-) -> Tuple[str, Dict[str, List[Union[int, float, str]]]]:
+) -> tuple[str, dict[str, list[Union[int, float, str]]]]:
     # Load and extract required values from XML file
     EMData = parse_xml(xml_path=xml_path)
 
@@ -193,7 +193,7 @@ def collect(
     time = time[:26] + "Z"
     time_obj: datetime = parse_datetime(time)
     time_obj = time_obj - timedelta(minutes=1)
-    setup: Dict[str, List[Union[int, float, str]]] = {}
+    setup: dict[str, list[Union[int, float, str]]] = {}
     value_data = EMData.values.value_data
     for data in value_data:
         # Extract the parameter values and parameter_id
@@ -246,9 +246,9 @@ def parse_xml(
     return EMData
 
 
-def limits() -> Dict[str, Value_Limits]:
+def limits() -> dict[str, Value_Limits]:
     EMData = parse_xml()
-    data: Dict[str, Value_Limits] = {}
+    data: dict[str, Value_Limits] = {}
 
     Data = EMData.values.value_data
     for value in Data:
@@ -287,10 +287,10 @@ def limits() -> Dict[str, Value_Limits]:
     return data
 
 
-def parse_enums(xml_path: os.PathLike) -> Dict[str, Dict[int, str]]:
+def parse_enums(xml_path: os.PathLike) -> dict[str, dict[int, str]]:
     EMData = parse_xml(xml_path=xml_path)
     # Write the enumeration values to a JSON file
-    data: Dict[str, Dict[int, str]] = {}
+    data: dict[str, dict[int, str]] = {}
     for enum in EMData.enumerations.enumerations:
         name = enum.name
         name = name.replace("_enum", "")
@@ -300,9 +300,9 @@ def parse_enums(xml_path: os.PathLike) -> Dict[str, Dict[int, str]]:
     return data
 
 
-def component_enums(xml_path: os.PathLike) -> Dict[str, ParameterNames]:
+def component_enums(xml_path: os.PathLike) -> dict[str, ParameterNames]:
     EMData = parse_xml(xml_path=xml_path)
-    ResponseData: Dict[str, ParameterNames] = {}
+    ResponseData: dict[str, ParameterNames] = {}
     for outercomponent in EMData.instruments.instrument.component:
         if outercomponent.components is None and outercomponent.parameter is not None:
             for parameter in outercomponent.parameter:

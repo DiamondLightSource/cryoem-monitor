@@ -1,6 +1,6 @@
 import os
 from pathlib import Path
-from typing import List, Optional
+from typing import Optional
 
 import yaml
 from backports.entry_points_selectable import entry_points
@@ -12,7 +12,7 @@ router = APIRouter()
 
 class CryoEMMonitorConfig(BaseModel):
     health_data_path: Path
-    health_data_command: List[str]
+    health_data_command: list[str]
     health_data_collection_timestep: int
     health_monitor_xml: Optional[Path] = None
 

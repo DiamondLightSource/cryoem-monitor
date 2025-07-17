@@ -1,6 +1,6 @@
 import json
 import os
-from typing import Any, Dict, List, Union
+from typing import Any, Union
 
 from cryoem_monitor.client.logger import (
     ParameterNames,
@@ -11,8 +11,8 @@ from cryoem_monitor.client.logger import (
 
 
 async def grafana_export(device: str, xml_path: os.PathLike):
-    ComponentList: Dict[str, ParameterNames] = component_enums(xml_path=xml_path)
-    Limits: Dict[str, Value_Limits] = limits()  # id: Value_Limits
+    ComponentList: dict[str, ParameterNames] = component_enums(xml_path=xml_path)
+    Limits: dict[str, Value_Limits] = limits()  # id: Value_Limits
 
     with open("grafana/template.json") as file:
         Template = json.load(file)
@@ -77,9 +77,9 @@ def threshold(
     caution_max: Union[int, float, None] = None,
     warning_max: Union[int, float, None] = None,
     critical_max: Union[int, float, None] = None,
-) -> List[Dict[str, Any]]:
+) -> list[dict[str, Any]]:
     if critical_min is None and warning_min is None and caution_min is None:
-        thresholds: List[Dict[str, Any]] = [
+        thresholds: list[dict[str, Any]] = [
             {"color": "green", "value": None},
         ]
     else:
