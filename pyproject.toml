@@ -15,7 +15,7 @@ dependencies = ["backports.entry_points_selectable"] # Add project dependencies 
 dynamic = ["version"]
 license.file = "LICENSE"
 readme = "README.md"
-requires-python = ">=3.7"
+requires-python = ">=3.9"
 
 [project.optional-dependencies]
 dev = [
