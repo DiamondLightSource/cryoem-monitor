@@ -171,6 +171,7 @@ def parse_datetime(datetime_str: str) -> datetime:
         "%Y-%m-%dT%H:%M:%S.%fZZ",
         "%Y-%m-%dT%H:%M:%S.%f%z",
         "%Y-%m-%dT%H:%M:%S%z",
+        "%Y-%m-%dT%H:%M:%S.%f+0Z",
     ]
     for time_format in known_time_formats:
         try:
