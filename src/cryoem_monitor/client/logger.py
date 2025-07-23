@@ -163,7 +163,7 @@ class Value_Limits(BaseModel):
     critical_max: Optional[Union[float, int]]
 
 
-def parse_datetime(datetime_str: str) -> datetime:
+def parse_datetime(datetime_str: str) -> Optional[datetime]:
     # Parse to datetime object with and wwithout fractional seconds
     known_time_formats = [
         "%Y-%m-%dT%H:%M:%S.%fZ",
@@ -179,7 +179,8 @@ def parse_datetime(datetime_str: str) -> datetime:
             return datetime.strptime(datetime_str, time_format)
         except ValueError:
             continue
-    raise ValueError(f"No time formats fit for {datetime_str}")
+    print(f"No time formats fit for {datetime_str}")
+    return None
 
 
 def collect(
@@ -192,7 +193,9 @@ def collect(
     instrument_name: str = EMData.values.instrument
     time: str = EMData.values.end
     time = time[:26] + "Z"
-    time_obj: datetime = parse_datetime(time)
+    time_obj: Optional[datetime] = parse_datetime(time)
+    if time_obj is None:
+        return instrument_name, {}
     time_obj = time_obj - timedelta(minutes=1)
     setup: dict[str, list[Union[int, float, str]]] = {}
     value_data = EMData.values.value_data
@@ -204,7 +207,9 @@ def collect(
         # Append all values for each parameter_id
         for value in values:
             for parameter in value.parameter_value:
-                value_time: datetime = parse_datetime(parameter.timestamp)
+                value_time: Optional[datetime] = parse_datetime(parameter.timestamp)
+                if not value_time:
+                    continue
                 value_time = value_time.replace(tzinfo=timezone.utc)
                 time_obj = time_obj.replace(tzinfo=timezone.utc)
                 if value_time >= time_obj:
@@ -219,6 +224,9 @@ def save_parameter_names(
     json_out_path: os.PathLike = Path("src/cryoem_monitor/client/parameter_names.json"),
 ):
     instrument_name, data = collect(xml_path=xml_path)
+    if not data:
+        print(f"Skipping saving results from {xml_path}")
+        return
     with open(json_out_path, "w") as file:
         json.dump({"parameter_names": list(data.keys())}, file, indent=4)
 
@@ -351,6 +359,9 @@ async def push_data(
 ):
     url = f"{url_base}/set"
     instrument_name, data = collect(xml_path=xml_path)
+    if not data:
+        print(f"Skipping saving results from {xml_path}")
+        return
     for parameter, values in data.items():
         if values:
             payload = {
