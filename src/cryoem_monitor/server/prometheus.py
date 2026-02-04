@@ -59,7 +59,7 @@ for componentid in ComponentList:
     enum_val = ComponentList[componentid].enumeration
     if enum_val is not None:
         Enumerations[componentid] = Enum(
-            f"{ComponentList[componentid].name}_PID_{componentid}",
+            f"{ComponentList[componentid].name}",
             f"PID_{componentid}: {format_string(ComponentList[componentid].name)}",
             states=list(Enum_List[enum_val].values()),
             labelnames=["instrument"],

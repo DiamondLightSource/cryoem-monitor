@@ -196,7 +196,7 @@ def collect(
     time_obj: Optional[datetime] = parse_datetime(time)
     if time_obj is None:
         return instrument_name, {}
-    time_obj = time_obj - timedelta(minutes=1)
+    time_obj = time_obj - timedelta(minutes=5)
     setup: dict[str, list[Union[int, float, str]]] = {}
     value_data = EMData.values.value_data
     for data in value_data:
@@ -316,7 +316,15 @@ def component_enums(xml_path: os.PathLike) -> dict[str, ParameterNames]:
         if outercomponent.components is None and outercomponent.parameter is not None:
             for parameter in outercomponent.parameter:
                 id = parameter.parameterid
-                name = f"{outercomponent.name}_{parameter.name}"
+                name = (
+                    f"{outercomponent.name}_{parameter.eventname}".replace(
+                        "HasChangedEvent", ""
+                    )
+                    .replace("ChangedEvent", "")
+                    .replace("Event", "")
+                )
+                if parameter.name not in name:
+                    name += f"_{parameter.name}"
                 name = name.replace(" ", "_").replace(".", "").replace("-", "")
                 if isinstance(parameter.enumerationname, str):
                     enumeration = parameter.enumerationname
@@ -335,7 +343,15 @@ def component_enums(xml_path: os.PathLike) -> dict[str, ParameterNames]:
                     if innercomponent.parameter is not None:
                         for parameter in innercomponent.parameter:
                             id = parameter.parameterid
-                            name = f"{innercomponent.name}_{parameter.name}"
+                            name = (
+                                f"{outercomponent.name}_{parameter.eventname}".replace(
+                                    "HasChangedEvent", ""
+                                )
+                                .replace("ChangedEvent", "")
+                                .replace("Event", "")
+                            )
+                            if parameter.name not in name:
+                                name += f"_{parameter.name}"
                             name = (
                                 name.replace(" ", "_").replace(".", "").replace("-", "")
                             )
