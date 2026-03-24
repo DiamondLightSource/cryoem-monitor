@@ -4,6 +4,7 @@ build-backend = "setuptools.build_meta"
 
 [project]
 name = "cryoem-monitor"
+version = "0.1.0"
 classifiers = [
     "Development Status :: 3 - Alpha",
     "License :: OSI Approved :: Apache Software License",
@@ -45,7 +46,6 @@ server = [
     ]
 
 [project.scripts]
-cryoem_monitor = "cryoem_monitor.__main__:main"
 "cryoem_monitor.run" = "cryoem_monitor.cli.main:run"
 "cryoem_monitor.graf-export" = "cryoem_monitor.cli.main:export"
 [project.entry-points."murfey.routers"]
