@@ -3,7 +3,7 @@ import json
 import os
 from datetime import datetime, timedelta, timezone
 from pathlib import Path
-from typing import Literal, Optional, Union
+from typing import Literal
 
 import requests
 from pydantic import BaseModel, ValidationError
@@ -41,7 +41,7 @@ class Parameter(BaseXmlModel):
     name: str = attr(name="Name")
     displayname: str = attr(name="DisplayName")
     datatype: str = attr(name="Type")
-    enumerationname: Optional[str] = attr(name="EnumerationName", default=None)
+    enumerationname: str | None = attr(name="EnumerationName", default=None)
     storageunit: str = attr(name="StorageUnit")
     displayunit: str = attr(name="DisplayUnit")
     displayscale: str = attr(name="DisplayScale")
@@ -58,10 +58,8 @@ class Component(BaseXmlModel):
     servicecategory: str = attr(name="ServiceCategory")
     # Used to self-reference when you have sub-components of the same type
     # All optional fields are set to None by default or an empty list
-    components: Optional[list["Component"]] = element(tag="Component", default=None)
-    parameter: Optional[list[Parameter]] = element(
-        tag="Parameter", default_factory=list
-    )
+    components: list["Component"] | None = element(tag="Component", default=None)
+    parameter: list[Parameter] | None = element(tag="Parameter", default_factory=list)
 
 
 class Instrument(BaseXmlModel):
@@ -79,7 +77,7 @@ class Instruments(BaseXmlModel):
 # Classes for type hinting of XML data - Values
 class ValuePar(BaseXmlModel):
     datatype: str = attr(name="Type")
-    value: Union[float, int, str]
+    value: float | int | str
 
 
 class ParameterValue(BaseXmlModel):
@@ -93,7 +91,7 @@ class ParameterValues(BaseXmlModel):
 
 class ValueThresh(BaseXmlModel):
     datatype: str = attr(name="Type")
-    value: Union[int, float]
+    value: int | float
 
 
 class Threshold(BaseXmlModel):
@@ -106,7 +104,7 @@ class Threshold(BaseXmlModel):
         "CriticalMax",
     ] = attr(name="Name")
     # All optional fields are set to None by default or an empty list
-    value: Optional[ValueThresh] = element(tag="Value", default=None)
+    value: ValueThresh | None = element(tag="Value", default=None)
 
 
 class Limit(BaseXmlModel):
@@ -127,7 +125,7 @@ class ValueData(BaseXmlModel):
     parameter_value: list[ParameterValues] = element(
         tag="ParameterValues", default_factory=list
     )
-    limits: Optional[Limits] = element(tag="Limits", default_factory=list)
+    limits: Limits | None = element(tag="Limits", default_factory=list)
 
 
 class Values(BaseXmlModel):
@@ -145,25 +143,25 @@ class HealthMonitor(BaseXmlModel):
 
 
 class ResponseData(BaseModel):
-    data: dict[str, list[Union[int, float, str]]]
+    data: dict[str, list[int | float | str]]
     instrument_name: str
 
 
 class ParameterNames(BaseModel):
     name: str
-    enumeration: Optional[str]
+    enumeration: str | None
 
 
 class Value_Limits(BaseModel):
-    critical_min: Optional[Union[float, int]]
-    warning_min: Optional[Union[float, int]]
-    caution_min: Optional[Union[float, int]]
-    caution_max: Optional[Union[float, int]]
-    warning_max: Optional[Union[float, int]]
-    critical_max: Optional[Union[float, int]]
+    critical_min: float | int | None
+    warning_min: float | int | None
+    caution_min: float | int | None
+    caution_max: float | int | None
+    warning_max: float | int | None
+    critical_max: float | int | None
 
 
-def parse_datetime(datetime_str: str) -> Optional[datetime]:
+def parse_datetime(datetime_str: str) -> datetime | None:
     # Parse to datetime object with and wwithout fractional seconds
     known_time_formats = [
         "%Y-%m-%dT%H:%M:%S.%fZ",
@@ -185,7 +183,7 @@ def parse_datetime(datetime_str: str) -> Optional[datetime]:
 
 def collect(
     xml_path: os.PathLike,
-) -> tuple[str, dict[str, list[Union[int, float, str]]]]:
+) -> tuple[str, dict[str, list[int | float | str]]]:
     # Load and extract required values from XML file
     EMData = parse_xml(xml_path=xml_path)
 
@@ -193,11 +191,11 @@ def collect(
     instrument_name: str = EMData.values.instrument
     time: str = EMData.values.end
     time = time[:26] + "Z"
-    time_obj: Optional[datetime] = parse_datetime(time)
+    time_obj: datetime | None = parse_datetime(time)
     if time_obj is None:
         return instrument_name, {}
     time_obj = time_obj - timedelta(minutes=5)
-    setup: dict[str, list[Union[int, float, str]]] = {}
+    setup: dict[str, list[int | float | str]] = {}
     value_data = EMData.values.value_data
     for data in value_data:
         # Extract the parameter values and parameter_id
@@ -207,7 +205,7 @@ def collect(
         # Append all values for each parameter_id
         for value in values:
             for parameter in value.parameter_value:
-                value_time: Optional[datetime] = parse_datetime(parameter.timestamp)
+                value_time: datetime | None = parse_datetime(parameter.timestamp)
                 if not value_time:
                     continue
                 value_time = value_time.replace(tzinfo=timezone.utc)
@@ -268,7 +266,7 @@ def limits() -> dict[str, Value_Limits]:
                 thresholds = limit.thresholds
                 for threshold in thresholds:
                     name = threshold.name
-                    thresh_value: Union[ValueThresh, None] = threshold.value
+                    thresh_value: ValueThresh | None = threshold.value
                     if thresh_value is not None:
                         data_val = thresh_value.value
                         if value_id not in data:
@@ -388,7 +386,7 @@ async def push_data(
             try:
                 requests.post(url, json=payload)
             except Exception as e:
-                print(f"Posting to server failed: {e}")
+                print(f"Posting {payload} to server failed: {e}")
 
 
 async def main():

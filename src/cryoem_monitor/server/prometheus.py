@@ -2,7 +2,6 @@ import os
 import re
 import traceback
 from pathlib import Path
-from typing import Union
 
 import uvicorn
 from fastapi import APIRouter, FastAPI
@@ -101,7 +100,7 @@ app.include_router(router)
 class HealthMonitorData(BaseModel):
     type: str
     instrument: str
-    value: list[Union[str, float, int]]
+    value: list[str | float | int]
 
 
 # Handle different values based on if it is a gauge or an enum

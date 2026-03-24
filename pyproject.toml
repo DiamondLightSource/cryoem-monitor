@@ -11,11 +11,11 @@ classifiers = [
     "Programming Language :: Python :: 3.11",
 ]
 description = "Electron Microscope monitoring system using prometheus"
-dependencies = ["backports.entry_points_selectable"] # Add project dependencies here, e.g. ["click", "numpy"]
+dependencies = ["pydantic", "pydantic_xml", "requests"]
 dynamic = ["version"]
 license.file = "LICENSE"
 readme = "README.md"
-requires-python = ">=3.9"
+requires-python = ">=3.10"
 
 [project.optional-dependencies]
 dev = [
@@ -32,9 +32,6 @@ dev = [
     "prometheus_client",
     "fastapi",
     "uvicorn[standard]",
-    "requests",
-    "pydantic",
-    "pydantic_xml",
     "types-requests",
     "types-PyYAML",
     "argparse"

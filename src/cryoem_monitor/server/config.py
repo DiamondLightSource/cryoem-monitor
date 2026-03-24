@@ -1,9 +1,8 @@
 import os
+from importlib.metadata import entry_points
 from pathlib import Path
-from typing import Optional
 
 import yaml
-from backports.entry_points_selectable import entry_points
 from fastapi import APIRouter
 from pydantic import BaseModel
 
@@ -14,7 +13,7 @@ class CryoEMMonitorConfig(BaseModel):
     health_data_path: Path
     health_data_command: list[str]
     health_data_collection_timestep: int
-    health_monitor_xml: Optional[Path] = None
+    health_monitor_xml: Path | None = None
 
 
 def from_file(config_file_path: Path) -> CryoEMMonitorConfig:
@@ -24,8 +23,8 @@ def from_file(config_file_path: Path) -> CryoEMMonitorConfig:
 
 
 def get_config() -> CryoEMMonitorConfig:
-    if config_extraction_eps := entry_points().select(
-        group="murfey.config.extraction", name="murfey_machine"
+    if config_extraction_eps := list(
+        entry_points(group="murfey.config.extraction", name="murfey_machine")
     ):
         return config_extraction_eps[0].load()("cryoem_monitor")
     return from_file(Path(os.environ["CRYOEM_MONITOR_CONFIG"]))
