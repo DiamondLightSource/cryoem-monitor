@@ -1,9 +1,7 @@
 import subprocess
-import sys
-
-from cryoem_monitor import __version__
 
 
-def test_cli_version():
-    cmd = [sys.executable, "-m", "cryoem_monitor", "--version"]
-    assert subprocess.check_output(cmd).decode().strip() == __version__
+def test_cli_exists():
+    cmd = ["cryoem_monitor.run", "--help"]
+    run_out = subprocess.check_output(cmd).decode()
+    assert run_out.split("\n")[0] == "usage: cryoem_monitor.run [-h] --server HOST:PORT"

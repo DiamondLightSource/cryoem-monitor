@@ -13,7 +13,6 @@ classifiers = [
 ]
 description = "Electron Microscope monitoring system using prometheus"
 dependencies = ["pydantic", "pydantic_xml", "requests"]
-dynamic = ["version"]
 license.file = "LICENSE"
 readme = "README.md"
 requires-python = ">=3.10"
