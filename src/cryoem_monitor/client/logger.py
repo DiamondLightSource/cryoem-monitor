@@ -385,7 +385,10 @@ async def push_data(
                 "value": [str(v) for v in values],
                 "instrument": instrument_name,
             }
-            requests.post(url, json=payload)
+            try:
+                requests.post(url, json=payload)
+            except Exception as e:
+                print(f"Posting to server failed: {e}")
 
 
 async def main():
