@@ -4,9 +4,10 @@ import os
 from datetime import datetime, timedelta, timezone
 from pathlib import Path
 from typing import Literal
+from xml.etree.ElementTree import ParseError
 
 import requests
-from pydantic import BaseModel, ValidationError
+from pydantic import BaseModel
 from pydantic_xml import BaseXmlModel, attr, element
 
 # Note: pydantic documentation suggests the use of lxml to decode the XML data file,
@@ -236,19 +237,25 @@ def parse_xml(
     # ),
 ) -> HealthMonitor:
     # Load and extract required values from XML file
-    with open(xml_path) as file:
-        xml_data = file.read()
+    EMData = None
+    parse_error = ""
+    for encoding in ["utf-8", "utf-8-sig"]:
+        with open(xml_path, encoding=encoding) as file:
+            xml_data = file.read()
 
-    # Remove the namespace from the XML data due to this specific one being invalid
-    # Normally, this is not needed
-    xml_data = xml_data.replace(
-        ' xmlns="HealthMonitorExport http://schemas.fei.com/HealthMonitor/Export/2009/07"',
-        "",
-    )
-    try:
-        EMData = HealthMonitor.from_xml(xml_data)
-    except ValidationError as exc:
-        print(exc)
+        # Remove the namespace from the XML data due to this specific one being invalid
+        # Normally, this is not needed
+        xml_data = xml_data.replace(
+            ' xmlns="HealthMonitorExport http://schemas.fei.com/HealthMonitor/Export/2009/07"',
+            "",
+        )
+        try:
+            EMData = HealthMonitor.from_xml(xml_data)
+            break
+        except ParseError as e:
+            parse_error = f"{e}"
+    if not EMData:
+        raise ParseError(parse_error)
 
     return EMData
 
