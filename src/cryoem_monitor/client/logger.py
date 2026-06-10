@@ -380,9 +380,9 @@ def component_enums(xml_path: os.PathLike) -> dict[str, ParameterNames]:
     # Uniqueness check
     names_array = [v.name for v in ResponseData.values()]
     duplicated_names = {
-        n
-        for n in names_array
-        if len([i for i, na in enumerate(names_array) if na == n]) > 1
+        n_outer
+        for n_outer in names_array
+        if len([i for i, n_inner in enumerate(names_array) if n_inner == n_outer]) > 1
     }
     if duplicated_names:
         for name in list(duplicated_names):
