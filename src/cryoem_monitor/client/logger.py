@@ -38,7 +38,7 @@ class Enumerations(BaseXmlModel):
 class Parameter(BaseXmlModel):
     parameterid: str = attr(name="ID")
     eventid: str = attr(name="EventID")
-    eventname: str = attr(name="EventName")
+    eventname: str | None = attr(name="EventName", default=None)
     name: str = attr(name="Name")
     displayname: str = attr(name="DisplayName")
     datatype: str = attr(name="Type")
@@ -321,10 +321,13 @@ def component_enums(xml_path: os.PathLike) -> dict[str, ParameterNames]:
         if outercomponent.components is None and outercomponent.parameter is not None:
             for parameter in outercomponent.parameter:
                 id = parameter.parameterid
+                base_name = (
+                    f"{outercomponent.name}_{parameter.eventname}"
+                    if parameter.eventname
+                    else f"{outercomponent.name}_{parameter.name}"
+                )
                 name = (
-                    f"{outercomponent.name}_{parameter.eventname}".replace(
-                        "HasChangedEvent", ""
-                    )
+                    base_name.replace("HasChangedEvent", "")
                     .replace("ChangedEvent", "")
                     .replace("Event", "")
                 )
@@ -348,10 +351,13 @@ def component_enums(xml_path: os.PathLike) -> dict[str, ParameterNames]:
                     if innercomponent.parameter is not None:
                         for parameter in innercomponent.parameter:
                             id = parameter.parameterid
+                            base_name = (
+                                f"{outercomponent.name}_{parameter.eventname}"
+                                if parameter.eventname
+                                else f"{outercomponent.name}_{innercomponent.name}"
+                            )
                             name = (
-                                f"{outercomponent.name}_{parameter.eventname}".replace(
-                                    "HasChangedEvent", ""
-                                )
+                                base_name.replace("HasChangedEvent", "")
                                 .replace("ChangedEvent", "")
                                 .replace("Event", "")
                             )
@@ -370,6 +376,19 @@ def component_enums(xml_path: os.PathLike) -> dict[str, ParameterNames]:
                                 ResponseData[id] = ParameterNames(
                                     name=name, enumeration=None
                                 )
+
+    # Uniqueness check
+    names_array = [v.name for v in ResponseData.values()]
+    duplicated_names = {
+        n_outer
+        for n_outer in names_array
+        if len([i for i, n_inner in enumerate(names_array) if n_inner == n_outer]) > 1
+    }
+    if duplicated_names:
+        for name in list(duplicated_names):
+            matching_ids = [k for k, v in ResponseData.items() if v.name == name]
+            for match_id in matching_ids:
+                ResponseData[match_id].name += f"_{match_id}"
 
     return ResponseData
 
