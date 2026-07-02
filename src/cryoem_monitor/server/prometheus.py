@@ -1,6 +1,7 @@
 import os
 import re
 import traceback
+from datetime import datetime
 from pathlib import Path
 
 import uvicorn
@@ -64,7 +65,13 @@ for componentid in ComponentList:
             labelnames=["instrument"],
         )
 
-Gauges: dict[str, Gauge] = {}
+Gauges: dict[str, Gauge] = {
+    "monitoring_time": Gauge(
+        "monitoring_time",
+        "Time monitoring data was last received",
+        ["instrument"],
+    )
+}
 gauges_by_name: dict[str, Gauge] = {}
 
 for componentid in ComponentList:
@@ -105,9 +112,7 @@ class HealthMonitorData(BaseModel):
 
 # Handle different values based on if it is a gauge or an enum
 @prom_router.post("/set")
-async def set_value(
-    request: HealthMonitorData,
-):
+async def set_value(request: HealthMonitorData):
     payload = request
     # Check validity of payload value and if it is a list or not
     values = payload.value
@@ -121,6 +126,12 @@ async def set_value(
         instrument_name = payload.instrument
         if instrument_name is None:
             raise ValueError("Instrument name is missing or empty.")
+
+        # Update last received time
+        Gauges["monitoring_time"].labels(instrument_name).set(
+            datetime.now().timestamp()
+        )
+
         # Check if the header type is in the Enumerations, Gauge or Increment_map
         if header_type in Enumerations:
             for value in values:
@@ -128,7 +139,7 @@ async def set_value(
                 if enum_val is None:
                     raise ValueError("Enumeration is missing or empty.")
                 Enumerations[header_type].labels(instrument=instrument_name).state(
-                    Enum_List[enum_val][int(value)]
+                    Enum_List[enum_val][int(float(value))]
                 )
         elif header_type in Gauges:
             # Set the last value and label with the instrument name
